@@ -42,11 +42,11 @@ class GeoMagResult{
       required this.glon
     });
 
-    double dec(){return this.d;}
-    double dip(){return this.i;}
-    double inclination(){return this.i;}
-    double ti(){return this.f;}
-    double total_intensity(){return this.f;}
+    double dec() => this.d;
+    double dip() => this.i;
+    double inclination() => this.i;
+    double ti() => this.f;
+    double total_intensity() => this.f;
   
     void calculate(bool raise_in_warning_zone){
         // Calculate extra result values.
@@ -80,5 +80,69 @@ class GeoMagResult{
             }
             in_caution_zone = true;
         }
+        
+    // Calculate the uncertainty values for this ``GeoMagResult``.
+    // Uncertainty estimates provided by the **WMM2015** and **WMM2020** error model for the various field components.
+    // H is expressed in nT in the formula providing the error in D.
+    // These values can currently only be computed for ``GeoMagResult`` between 2015.0 and 2025.0 and using a value
+    // outside this will raise an Exception
+    GeoMagUncertaintyResult calculate_uncertainty() => GeoMagUncertaintyResult(result: this);
+
     }
+
+}
+
+    
+class GeoMagUncertaintyResult{
+    late double x;
+    late double y;
+    late double z;
+    late double h;
+    late double f;
+    late double i;
+    late double d;
+    // The uncertainty values of a ``GeoMagResult``.
+
+    // - **f** *(float)* – Uncertainty of the Total Intensity in nT
+    // - **h** *(float)* – Uncertainty of the Horizontal Intensity in nT
+    // - **x** *(float)* – Uncertainty of the North Component in nT
+    // - **y** *(float)* – Uncertainty of the East Component in nT
+    // - **z** *(float)* – Uncertainty of the Vertical Component in nT
+    // - **i** *(float)* – Uncertainty of the Geomagnetic Inclination in degrees
+    // - **d** *(float)* – Uncertainty of the Geomagnetic Declination (Magnetic Variation) in degrees
+
+    GeoMagUncertaintyResult({
+      required GeoMagResult result
+    }){
+      if (2020.0 <= result.time.year && result.time.year <= 2025.0){
+          this._error_model_wmm_2020(result);
+      } else if (2015.0 <= result.time.year && result.time.year < 2020.0){
+          this._error_model_wmm_2015(result);
+      } else{
+        Exception("GeoMagResult outside of known uncertainty estimates.");
+      }
+    }
+
+    void _error_model_wmm_2015(result){
+        // Calculate uncertainty estimates for 2015.0 to 2020.0
+        x = 138.0;
+        y = 89.0;
+        z = 165.0;
+        h = 133.0;
+        f = 152.0;
+        i = 0.22;
+        d = sqrt(pow(0.23,2) + pow(5430 / result.h, 2));
+    }
+
+    void _error_model_wmm_2020(result){
+        // Calculate uncertainty estimates for 2020.0 to 2025.0.
+        x = 131.0;
+        y = 94.0;
+        z = 157.0;
+        h = 128.0;
+        f = 148.0;
+        i = 0.21;
+        d = sqrt(pow(0.26, 2) + pow(5625 / result.h, 2));
+    }
+
 }
