@@ -245,43 +245,57 @@ class GeoMag{
   }
 
     void _load_coefficients(){
+        // Load the coefficients model to calculate the Magnetic Components from.
 
-    }
-//         """Load the coefficients model to calculate the Magnetic Components from."""
-//         if self._epoch is not None:
-//             return
+        if (_epoch != null){
+            return;
+        }
 
-//         c = self._create_matrix(13, 13)
-//         cd = self._create_matrix(13, 13)
-//         snorm = self._create_list(169)
-//         fn = self._create_list(13)
-//         fm = self._create_list(13)
-//         k = self._create_matrix(13, 13)
+        List<List<double>> c = List<List<double>>.filled(13, List<double>.filled(13, 0));
+        List<List<double>> cd = List<List<double>>.filled(13, List<double>.filled(13, 0));
+        List<double> snorm = List<double>.filled(169, 0);
+        List<double> fn = List<double>.filled(13, 0);
+        List<double> fm = List<double>.filled(13, 0);
+        List<List<double>> k = List<List<double>>.filled(13, List<double>.filled(13, 0));
 
-//         if self._coefficients_data:
-//             (epoch, model, release_date), coefficients = self._coefficients_data
-//         else:
-//             (epoch, model, release_date), coefficients = self._read_coefficients_data_from_file()
+        Iterable coefficients;
 
-//         # READ WORLD MAGNETIC MODEL SPHERICAL HARMONIC COEFFICIENTS
-//         c[0][0] = 0.0
-//         cd[0][0] = 0.0
+        if (_coefficients_data != null){
+            List vals = _coefficients_data;
+            coefficients = vals[1];
+            var (epoch, model, release_date) = vals[0];
+        }
+        else{
+            List vals = _read_coefficients_data_from_file();
+            coefficients = vals[1];
+            var (epoch, model, release_date) = vals[0];
+        }
 
-//         for n, m, gnm, hnm, dgnm, dhnm in coefficients:
-//             if m > self._maxord:
-//                 break
-//             if m > n or m < 0:
-//                 raise ValueError("Corrupt record in model file")
-//             if m <= n:
-//                 c[m][n] = gnm
-//                 cd[m][n] = dgnm
-//                 if m != 0:
-//                     c[n][m - 1] = hnm
-//                     cd[n][m - 1] = dhnm
+        // READ WORLD MAGNETIC MODEL SPHERICAL HARMONIC COEFFICIENTS
+        c[0][0] = 0.0;
+        cd[0][0] = 0.0;
+        for(var (n, m, gnm, hnm, dgnm, dhnm) in coefficients){
+            if (m > _maxord){
+                break;
+            }
+            else if (m > n || m < 0){
+                Exception("Corrupt record in model file");
+            }
+            else if (m <= n){
+                c[m][n] = gnm;
+                cd[m][n] = dgnm;
+                if (m != 0){
+                    c[n][m - 1] = hnm;
+                    cd[n][m - 1] = dhnm;
+                  }
+               }
 
-//         # CONVERT SCHMIDT NORMALIZED GAUSS COEFFICIENTS TO UNNORMALIZED
-//         snorm[0] = 1.0
-//         fm[0] = 0.0
+        }
+
+//      CONVERT SCHMIDT NORMALIZED GAUSS COEFFICIENTS TO UNNORMALIZED
+        snorm[0] = 1.0;
+        fm[0] = 0.0;
+  
 //         for n in range(1, self._maxord + 1):
 //             snorm[n] = snorm[n - 1] * float(2 * n - 1) / float(n)
 //             j = 2
@@ -302,17 +316,18 @@ class GeoMag{
 //                 m += D1
 //             fn[n] = float(n + 1)
 //             fm[n] = float(n)
-//         k[1][1] = 0.0
+          k[1][1] = 0.0;
 
-//         self._epoch = epoch
-//         self._model = model
-//         self._release_date = release_date
-//         self._c = c
-//         self._cd = cd
-//         self._p = snorm
-//         self._fn = fn
-//         self._fm = fm
-//         self._k = k
+        // _epoch = epoch;
+        // _model = model;
+        // _release_date = release_date;
+        _c = c;
+        _cd = cd;
+        _p = snorm;
+        _fn = fn;
+        _fm = fm;
+        _k = k;
+    }
 }
 
 
