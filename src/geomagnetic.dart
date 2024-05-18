@@ -1,3 +1,7 @@
+/*
+Based on pygeomag
+
+*/
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
@@ -5,14 +9,29 @@ import 'dart:convert';
 const double twoPi = pi * 2;
 const double degToRad = pi / 180.0;
 
+/// The Magnetic Components values from ``GeoMag.calculate()``.
+/// 
+/// - **glat** *(float)* – Geodetic Latitude, -90.00 to +90.00 degrees (North positive, South negative)
+/// - **glon** *(float)* – Geodetic Longitude, -180.00 to +180.00 degrees (East positive, West negative)
+/// - **alt** *(float)* – Altitude, -1 to 850km referenced to the WGS 84 ellipsoid OR the Mean Sea Level (MSL)
+/// - **time** *(float)* – Time (in decimal year), 2020.0 to 2025.0
+/// - **f**, **.ti**, **.total_intensity** *(float)* – Total Intensity
+/// - **h** *(float)* – Horizontal Intensity
+/// - **north_comp** *(float)* – North Component
+/// - **east_comp** *(float)* – East Component
+/// - **up_comp** *(float)* – Vertical Component
+/// - **i**, **.dip**, **.inclination** *(float)* – Geomagnetic Inclination
+/// - **d**, **.dec** *(float)* – Geomagnetic Declination (Magnetic Variation)
+/// - **gv** *(float)* – Magnetic grid variation if the current geodetic position is in the arctic or antarctic
+
 class GeoMagResult{
     DateTime time;
     double alt;
     double glat;
     double glon;
-    late double x;
-    late double y;
-    late double z;
+    late double north_comp;
+    late double east_comp;
+    late double up_comp;
     late double h;
     late double f;
     late double i;
@@ -20,22 +39,6 @@ class GeoMagResult{
     late double gv;
     bool in_blackout_zone = false;
     bool in_caution_zone = false;
-
-    // The Magnetic Components values from ``GeoMag.calculate()``.
-
-    // - **glat** *(float)* – Geodetic Latitude, -90.00 to +90.00 degrees (North positive, South negative)
-    // - **glon** *(float)* – Geodetic Longitude, -180.00 to +180.00 degrees (East positive, West negative)
-    // - **alt** *(float)* – Altitude, -1 to 850km referenced to the WGS 84 ellipsoid OR the Mean Sea Level (MSL)
-    // - **time** *(float)* – Time (in decimal year), 2020.0 to 2025.0
-
-    // - **f**, **.ti**, **.total_intensity** *(float)* – Total Intensity
-    // - **h** *(float)* – Horizontal Intensity
-    // - **x** *(float)* – North Component
-    // - **y** *(float)* – East Component
-    // - **z** *(float)* – Vertical Component
-    // - **i**, **.dip**, **.inclination** *(float)* – Geomagnetic Inclination
-    // - **d**, **.dec** *(float)* – Geomagnetic Declination (Magnetic Variation)
-    // - **gv** *(float)* – Magnetic grid variation if the current geodetic position is in the arctic or antarctic
 
     GeoMagResult(
       this.time,
@@ -53,9 +56,9 @@ class GeoMagResult{
     void calculate(bool raise_in_warning_zone){
         // Calculate extra result values.
         // COMPUTE X, Y, Z, AND H COMPONENTS OF THE MAGNETIC FIELD
-        x = f * (cos(degToRad * d) * cos(degToRad * i));
-        y = f * (cos(degToRad * i) * sin(degToRad * d));
-        z = f * (sin(degToRad * i));
+        north_comp = f * (cos(degToRad * d) * cos(degToRad * i));
+        east_comp = f * (cos(degToRad * i) * sin(degToRad * d));
+        up_comp = f * (sin(degToRad * i));
         h = f * (cos(degToRad * i));
 
         // Check if in Caution or Blackout Zones
@@ -95,24 +98,23 @@ class GeoMagResult{
 }
 
 
+/// The uncertainty values of a ``GeoMagResult``.
+/// 
+/// - **f** *(float)* – Uncertainty of the Total Intensity in nT
+/// - **h** *(float)* – Uncertainty of the Horizontal Intensity in nT
+/// - **north_comp_unc** *(float)* – Uncertainty of the North Component in nT
+/// - **east_comp_unc** *(float)* – Uncertainty of the East Component in nT
+/// - **up_comp_unc** *(float)* – Uncertainty of the Vertical Component in nT
+/// - **i** *(float)* – Uncertainty of the Geomagnetic Inclination in degrees
+/// - **d** *(float)* – Uncertainty of the Geomagnetic Declination (Magnetic Variation) in degrees
 class GeoMagUncertaintyResult{
-    late double x;
-    late double y;
-    late double z;
+    late double north_comp_unc;
+    late double east_comp_unc;
+    late double up_comp_unc;
     late double h;
     late double f;
     late double i;
     late double d;
-    // The uncertainty values of a ``GeoMagResult``.
-
-    // - **f** *(float)* – Uncertainty of the Total Intensity in nT
-    // - **h** *(float)* – Uncertainty of the Horizontal Intensity in nT
-    // - **x** *(float)* – Uncertainty of the North Component in nT
-    // - **y** *(float)* – Uncertainty of the East Component in nT
-    // - **z** *(float)* – Uncertainty of the Vertical Component in nT
-    // - **i** *(float)* – Uncertainty of the Geomagnetic Inclination in degrees
-    // - **d** *(float)* – Uncertainty of the Geomagnetic Declination (Magnetic Variation) in degrees
-
     GeoMagUncertaintyResult({
       required GeoMagResult result
     }){
@@ -127,9 +129,9 @@ class GeoMagUncertaintyResult{
 
     void _error_model_wmm_2015(result){
         // Calculate uncertainty estimates for 2015.0 to 2020.0
-        x = 138.0;
-        y = 89.0;
-        z = 165.0;
+        north_comp_unc = 138.0;
+        east_comp_unc = 89.0;
+        up_comp_unc = 165.0;
         h = 133.0;
         f = 152.0;
         i = 0.22;
@@ -138,9 +140,9 @@ class GeoMagUncertaintyResult{
 
     void _error_model_wmm_2020(result){
         // Calculate uncertainty estimates for 2020.0 to 2025.0.
-        x = 131.0;
-        y = 94.0;
-        z = 157.0;
+        north_comp_unc = 131.0;
+        east_comp_unc = 94.0;
+        up_comp_unc = 157.0;
         h = 128.0;
         f = 148.0;
         i = 0.21;
@@ -149,21 +151,18 @@ class GeoMagUncertaintyResult{
 
 }
 
+///     Dart port of Python port of the Legacy C code provided by NOAA for the World Magnetic Model (WMM).
+///     
+///     It defaults to using the WMM-2020 Coefficient file (WMM.COF) valid for 2020.0 - 2025.0.
+///     Included are the following coefficient files:
+///     .. table::
+///        :widths: auto
+///        ==============  ==========  ===============  ==========
+///        File            Model       Life Span        Creation
+///        ==============  ==========  ===============  ==========
+///        WMM.COF         WMM-2020    2020.0 - 2025.0  12/10/2019
+///        ==============  ==========  ===============  ==========
 class GeoMag{
-    //     Dart port of Python port of the Legacy C code provided by NOAA for the World Magnetic Model (WMM).
-    //     It defaults to using the WMM-2020 Coefficient file (WMM.COF) valid for 2020.0 - 2025.0.
-
-    //     Included are the following coefficient files, if you have the need to calculate past values:
-    //     .. table::
-    //        :widths: auto
-    //        ==============  ==========  ===============  ==========
-    //        File            Model       Life Span        Creation
-    //        ==============  ==========  ===============  ==========
-    //        WMM.COF         WMM-2020    2020.0 - 2025.0  12/10/2019
-    //        WMM_2015v2.COF  WMM-2015v2  2015.0 - 2020.0  09/18/2018
-    //        WMM_2015.COF    WMM-2015    2015.0 - 2020.0  12/15/2014
-    //        WMM_2010.COF    WMM-2010    2010.0 - 2015.0  11/20/2009
-    //        ==============  ==========  ===============  ==========
 
   var _coefficients_data;
   var _coefficients_file;
@@ -186,6 +185,8 @@ class GeoMag{
     _coefficients_data = coefficients_data;
     _coefficients_file = coefficients_file;
     _maxord = 12;
+
+  }
 
     model(){
       // Return the life span for the selected coefficient file.
@@ -211,8 +212,8 @@ class GeoMag{
       return _release_date;
     }
 
+    /// Determine the model filename to load the coefficients from.
     String _get_model_filename(){
-      // Determine the model filename to load the coefficients from.
       if (_coefficients_file != null){
         if (_coefficients_file[0] == "/" || _coefficients_file[0] == "\\"){
           return _coefficients_file;
@@ -226,15 +227,15 @@ class GeoMag{
           return filepath.parent.path + sep + _coefficients_file;
       }
 
-      coefficients_file = "wmm${sep}WMM.COF";
-      var wmm_filepath = filepath.parent.path + sep + coefficients_file;
+      _coefficients_file = "wmm${sep}WMM.csv";
+      var wmm_filepath = filepath.parent.path + sep + _coefficients_file;
 
       if (File(wmm_filepath).existsSync()){
           _coefficients_file = wmm_filepath;
           return wmm_filepath;
       }
-      coefficients_file = "WMM.COF";
-      var wmm_filepath2 = filepath.parent.path + sep + coefficients_file;
+      _coefficients_file = "WMM.csv";
+      var wmm_filepath2 = filepath.parent.path + sep + _coefficients_file;
 
       if (File(wmm_filepath2).existsSync()){
           _coefficients_file = wmm_filepath2;
@@ -244,8 +245,8 @@ class GeoMag{
       }
     }
 
+    /// Read coefficients data from file to be processed by ``_load_coefficients``.
     ((double, String, DateTime), List<dynamic>) _read_coefficients_data_from_file(){
-        // Read coefficients data from file to be processed by ``_load_coefficients``.
         var data = [];
         String model_filename = _get_model_filename(); 
         
@@ -291,8 +292,8 @@ class GeoMag{
       return List<double>.filled(size, val);
     }
 
+    /// Load the coefficients model to calculate the Magnetic Components from.
     void _load_coefficients(){
-        // Load the coefficients model to calculate the Magnetic Components from.
 
         if (_epoch != null){
             return;
@@ -383,6 +384,22 @@ class GeoMag{
     }
 
 
+    /// Calculate the Magnetic Components from a latitude, longitude, altitude and date.
+    /// 
+    /// - **float glat** Geodetic Latitude, -90.00 to +90.00 degrees (North positive, South negative)
+    /// - **float glon** Geodetic Longitude, -180.00 to +180.00 degrees (East positive, West negative)
+    /// - **float alt** Altitude, -1 to 850km referenced to the WGS 84 ellipsoid OR the Mean Sea Level (MSL)
+    /// - **float time** Time (in decimal year), 2020.0 to 2025.0
+    /// - **bool allow_date_outside_lifespan** True, if you want an estimation outside the 5-year life span
+    /// - **bool raise_in_warning_zone** True if you want to raise a BlackoutZoneException or CautionZoneException
+    ///   exception when the horizontal intensity is < 6000
+    /// return type: GeoMagResult
+    /// 
+    ///  Calculate the geomagnetic declination at the Space Needle in Seattle, WA:
+    ///  - geo_mag = GeoMag()
+    ///  - result = geo_mag.calculate(glat=47.6205, glon=-122.3493, alt=0, time=2023.75)
+    ///  - print(result.d)
+    ///  - 15.25942260585284
     GeoMagResult calculate(
       double glat,
       double glon,
@@ -392,29 +409,6 @@ class GeoMag{
         bool allow_date_outside_lifespan=false,
         bool raise_in_warning_zone=false,
     }){
-
-//         Calculate the Magnetic Components from a latitude, longitude, altitude and date.
-
-//         :param float glat: Geodetic Latitude, -90.00 to +90.00 degrees (North positive, South negative)
-//         :param float glon: Geodetic Longitude, -180.00 to +180.00 degrees (East positive, West negative)
-//         :param float alt: Altitude, -1 to 850km referenced to the WGS 84 ellipsoid OR the Mean Sea Level (MSL)
-//         :param float time: Time (in decimal year), 2020.0 to 2025.0
-//         :param bool allow_date_outside_lifespan: True, if you want an estimation outside the 5-year life span
-//         :param bool raise_in_warning_zone: True if you want to raise a BlackoutZoneException or CautionZoneException
-//             exception when the horizontal intensity is < 6000
-//         :return type: GeoMagResult
-
-//         Calculate the geomagnetic declination at the Space Needle in Seattle, WA:
-//         >>> geo_mag = GeoMag()
-//         >>> result = geo_mag.calculate(glat=47.6205, glon=-122.3493, alt=0, time=2023.75)
-//         >>> print(result.d)
-//         15.25942260585284
-
-//         And calculate it for the same spot 10 years ago:
-//         >>> geo_mag = GeoMag(coefficients_file='wmm/WMM_2010.COF')
-//         >>> result = geo_mag.calculate(glat=47.6205, glon=-122.3493, alt=0, time=2013.75)
-//         >>> print(result.d)
-//         16.32554283003356
 
         List<List<double>> tc = _create_matrix(13);
         List<List<double>> dp = _create_matrix(13);
@@ -440,13 +434,6 @@ class GeoMag{
         double c4 = a4 - b4;
 
         _load_coefficients();
-
-        //  TODO #1: Legacy C code static vars for speed
-        //   Decide to either:
-        //    1. Pull out the tracking of previous values
-        //         which are in the legacy c app for speeding it up for getting the Secular Change
-        //    2. Remove them
-        //  otime = oalt = olat = olon = -1000.0
 
         Duration dt = time.difference(DateTime(_epoch.toInt()));
         if (dt.inDays < 0.0 || dt.inDays > (5.0*365.25) && !allow_date_outside_lifespan){
@@ -588,15 +575,16 @@ class GeoMag{
             if (glat > 0.0 && glon >= 0.0){
                 result.gv = result.d - glon;
             }
-            if (glat > 0.0 && glon < 0.0){
+            else if (glat > 0.0 && glon < 0.0){
                 result.gv = result.d + glon.abs();
             }
-            if (glat < 0.0 && glon >= 0.0){
+            else if (glat < 0.0 && glon >= 0.0){
                 result.gv = result.d + glon;
             } 
-            if (glat < 0.0 && glon < 0.0){
+            else if (glat < 0.0 && glon < 0.0){
                 result.gv = result.d - glon.abs();
             }
+
             if (result.gv > 180.0){
                 result.gv -= 360.0;
             }
@@ -612,7 +600,5 @@ class GeoMag{
         result.calculate(raise_in_warning_zone);
       return result;
     }
-
-  }
 }
 
