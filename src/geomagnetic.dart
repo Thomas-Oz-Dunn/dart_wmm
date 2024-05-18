@@ -285,6 +285,13 @@ class GeoMag{
 
     }
 
+    List<List<double>> _create_matrix(size, {double val=0}){
+      return List<List<double>>.filled(size, List<double>.filled(size, val));
+    }
+    List<double> _create_list(size, {double val=0}){
+      return List<double>.filled(size, val);
+    }
+
     void _load_coefficients(){
         // Load the coefficients model to calculate the Magnetic Components from.
 
@@ -292,12 +299,12 @@ class GeoMag{
             return;
         }
 
-        List<List<double>> c = List<List<double>>.filled(13, List<double>.filled(13, 0));
-        List<List<double>> cd = List<List<double>>.filled(13, List<double>.filled(13, 0));
-        List<double> snorm = List<double>.filled(169, 0);
-        List<double> fn = List<double>.filled(13, 0);
-        List<double> fm = List<double>.filled(13, 0);
-        List<List<double>> k = List<List<double>>.filled(13, List<double>.filled(13, 0));
+        List<List<double>> c = _create_matrix(13);
+        List<List<double>> cd = _create_matrix(13);
+        List<double> snorm = _create_list(169);
+        List<double> fn = _create_list(13);
+        List<double> fm = _create_list(13);
+        List<List<double>> k = _create_matrix(13);
 
         Iterable coefficients;
         var epoch;
@@ -377,23 +384,15 @@ class GeoMag{
     }
 
 
+    void calculate({
+        glat,
+        glon,
+        alt,
+        time,
+        bool allow_date_outside_lifespan=false,
+        bool raise_in_warning_zone=false,
+    }){
 
-
-  }
-}
-
-
-
-//     def calculate(
-//         self,
-//         glat,
-//         glon,
-//         alt,
-//         time,
-//         allow_date_outside_lifespan=False,
-//         raise_in_warning_zone=False,
-//     ):
-//         """
 //         Calculate the Magnetic Components from a latitude, longitude, altitude and date.
 
 //         :param float glat: Geodetic Latitude, -90.00 to +90.00 degrees (North positive, South negative)
@@ -406,42 +405,45 @@ class GeoMag{
 //         :return type: GeoMagResult
 
 //         Calculate the geomagnetic declination at the Space Needle in Seattle, WA:
-
-//         >>> from pygeomag import GeoMag
 //         >>> geo_mag = GeoMag()
 //         >>> result = geo_mag.calculate(glat=47.6205, glon=-122.3493, alt=0, time=2023.75)
 //         >>> print(result.d)
 //         15.25942260585284
 
 //         And calculate it for the same spot 10 years ago:
-
-//         >>> from pygeomag import GeoMag
 //         >>> geo_mag = GeoMag(coefficients_file='wmm/WMM_2010.COF')
 //         >>> result = geo_mag.calculate(glat=47.6205, glon=-122.3493, alt=0, time=2013.75)
 //         >>> print(result.d)
 //         16.32554283003356
-//         """
-//         tc = self._create_matrix(13, 13)
-//         dp = self._create_matrix(13, 13)
-//         sp = self._create_list(13)
-//         cp = self._create_list(13)
-//         pp = self._create_list(13)
 
-//         # INITIALIZE CONSTANTS
-//         sp[0] = 0.0
-//         cp[0] = pp[0] = 1.0
-//         dp[0][0] = 0.0
-//         a = 6378.137
-//         b = 6356.7523142
-//         re = 6371.2
-//         a2 = a * a
-//         b2 = b * b
-//         c2 = a2 - b2
-//         a4 = a2 * a2
-//         b4 = b2 * b2
-//         c4 = a4 - b4
+        List<List<double>> tc = _create_matrix(13);
+        List<List<double>> dp = _create_matrix(13);
+        List<double> sp = _create_list(169);
+        List<double> cp = _create_list(13);
+        List<double> pp = _create_list(13);
 
-//         self._load_coefficients()
+        // # INITIALIZE CONSTANTS
+        sp[0] = 0.0;
+        cp[0] = pp[0] = 1.0;
+        dp[0][0] = 0.0;
+
+        // Shape of earth
+        double a = 6378.137;
+        double b = 6356.7523142;
+        double re = 6371.2;
+
+        var a2 = a * a;
+        var b2 = b * b;
+        var c2 = a2 - b2;
+        var a4 = a2 * a2;
+        var b4 = b2 * b2;
+        var c4 = a4 - b4;
+
+        _load_coefficients();
+
+    }
+
+
 
 //         # TODO #1: Legacy C code static vars for speed
 //         #  Decide to either:
@@ -598,3 +600,9 @@ class GeoMag{
 //         # olon = glon
 
 //         return result
+
+
+
+  }
+}
+
