@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'dart:math';
+import 'dart:convert';
+import 'dart:async';
 
 const double twoPi = pi * 2;
 const double degToRad = pi / 180.0;
@@ -37,9 +39,9 @@ class GeoMagResult{
     // - **gv** *(float)* – Magnetic grid variation if the current geodetic position is in the arctic or antarctic
 
     GeoMagResult({
-      required this.time, 
-      required this.alt, 
-      required this.glat, 
+      required this.time,
+      required this.alt,
+      required this.glat,
       required this.glon
     });
 
@@ -48,7 +50,7 @@ class GeoMagResult{
     double inclination() => this.i;
     double ti() => this.f;
     double total_intensity() => this.f;
-  
+
     void calculate(bool raise_in_warning_zone){
         // Calculate extra result values.
         // COMPUTE X, Y, Z, AND H COMPONENTS OF THE MAGNETIC FIELD
@@ -81,7 +83,7 @@ class GeoMagResult{
             }
             in_caution_zone = true;
         }
-        
+
     // Calculate the uncertainty values for this ``GeoMagResult``.
     // Uncertainty estimates provided by the **WMM2015** and **WMM2020** error model for the various field components.
     // H is expressed in nT in the formula providing the error in D.
@@ -178,7 +180,7 @@ class GeoMag{
   late var _k;
 
   GeoMag({coefficients_file, coefficients_data}){
-  
+
     if (coefficients_file != null && coefficients_data!= null){
         Exception("Both coefficients_file and coefficients_data supplied, supply none or only one.");
     }
@@ -227,14 +229,14 @@ class GeoMag{
 
       coefficients_file = "wmm${sep}WMM.COF";
       var wmm_filepath = filepath.parent.path + sep + coefficients_file;
-      
+
       if (File(wmm_filepath).existsSync()){
           _coefficients_file = wmm_filepath;
           return wmm_filepath;
-      } 
+      }
       coefficients_file = "WMM.COF";
       var wmm_filepath2 = filepath.parent.path + sep + coefficients_file;
-      
+
       if (File(wmm_filepath2).existsSync()){
           _coefficients_file = wmm_filepath2;
           return wmm_filepath2;
@@ -242,7 +244,46 @@ class GeoMag{
         return wmm_filepath;
       }
     }
-  }
+
+    ((double, String, DateTime), List<dynamic>) _read_coefficients_data_from_file(){
+        // Read coefficients data from file to be processed by ``_load_coefficients``.
+        var data = [];
+        String model_filename = _get_model_filename(); 
+        
+        List<String> lines = new File(model_filename).readAsLinesSync();
+
+        var header = LineSplitter().convert(lines[0]);
+        if (header.length != 3){
+            Exception("Corrupt header in model file");
+        }
+        double epoch = double.parse(header[0]);
+        String model = header[1];
+        DateTime release_date = DateTime.parse(header[2]);
+
+
+        int i =0;
+        for (var line in lines){
+          if (i>0){
+          
+            var data_line = LineSplitter().convert(line);
+            if (data_line.length != 6){
+                Exception("Corrupt record in model file");
+            }
+            data += [
+              int.parse(data_line[0]), 
+              int.parse(data_line[1]), 
+              double.parse(data_line[2]), 
+              double.parse(data_line[3]), 
+              double.parse(data_line[4]), 
+              double.parse(data_line[5])
+            ];
+          }
+          i += 1;
+        }
+
+        return ((epoch, model, release_date), data);
+
+    }
 
     void _load_coefficients(){
         // Load the coefficients model to calculate the Magnetic Components from.
@@ -259,16 +300,19 @@ class GeoMag{
         List<List<double>> k = List<List<double>>.filled(13, List<double>.filled(13, 0));
 
         Iterable coefficients;
+        var epoch;
+        var model;
+        var release_date;
 
         if (_coefficients_data != null){
             List vals = _coefficients_data;
+            (epoch, model, release_date) = vals[0];
             coefficients = vals[1];
-            var (epoch, model, release_date) = vals[0];
         }
         else{
-            List vals = _read_coefficients_data_from_file();
-            coefficients = vals[1];
-            var (epoch, model, release_date) = vals[0];
+            ((double, String, DateTime), List<dynamic>) vals = _read_coefficients_data_from_file();
+            (epoch, model, release_date) = vals.$1;
+            coefficients = vals.$2;
         }
 
         // READ WORLD MAGNETIC MODEL SPHERICAL HARMONIC COEFFICIENTS
@@ -288,39 +332,42 @@ class GeoMag{
                     c[n][m - 1] = hnm;
                     cd[n][m - 1] = dhnm;
                   }
-               }
+            }
 
         }
 
-//      CONVERT SCHMIDT NORMALIZED GAUSS COEFFICIENTS TO UNNORMALIZED
+        // CONVERT SCHMIDT NORMALIZED GAUSS COEFFICIENTS TO UNNORMALIZED
         snorm[0] = 1.0;
         fm[0] = 0.0;
-  
-//         for n in range(1, self._maxord + 1):
-//             snorm[n] = snorm[n - 1] * float(2 * n - 1) / float(n)
-//             j = 2
-//             m = 0
-//             D1 = 1  # noqa pyCharm: Variable in function should be lowercase
-//             D2 = (n - m + D1) / D1  # noqa pyCharm: Variable in function should be lowercase
-//             while D2 > 0:
-//                 k[m][n] = float(((n - 1) * (n - 1)) - (m * m)) / float((2 * n - 1) * (2 * n - 3))
-//                 if m > 0:
-//                     flnmj = float((n - m + 1) * j) / float(n + m)
-//                     snorm[n + m * 13] = snorm[n + (m - 1) * 13] * math.sqrt(flnmj)
-//                     j = 1
-//                     c[n][m - 1] = snorm[n + m * 13] * c[n][m - 1]
-//                     cd[n][m - 1] = snorm[n + m * 13] * cd[n][m - 1]
-//                 c[m][n] = snorm[n + m * 13] * c[m][n]
-//                 cd[m][n] = snorm[n + m * 13] * cd[m][n]
-//                 D2 -= 1
-//                 m += D1
-//             fn[n] = float(n + 1)
-//             fm[n] = float(n)
-          k[1][1] = 0.0;
 
-        // _epoch = epoch;
-        // _model = model;
-        // _release_date = release_date;
+        for (int n=1; n<_maxord+1; n+=1){
+            snorm[n] = snorm[n - 1] * (2 * n - 1) / n;
+            int j = 2;
+            int m = 0;
+            int D1 = 1;
+            double D2 = (n - m + D1) / D1;
+            while(D2>0){
+                k[m][n] = ((n - 1) * (n - 1)) - (m * m) / ((2 * n - 1) * (2 * n - 3));
+                if (m > 0){
+                  double flnmj = sqrt((n - m + 1) * j / (n + m));
+                  snorm[n + m * 13] = snorm[n + (m - 1) * 13] * flnmj;
+                  j = 1;
+                  c[n][m - 1] = snorm[n + m * 13] * c[n][m - 1];
+                  cd[n][m - 1] = snorm[n + m * 13] * cd[n][m - 1];
+                  c[m][n] = snorm[n + m * 13] * c[m][n];
+                  cd[m][n] = snorm[n + m * 13] * cd[m][n];
+                  D2 -= 1;
+                  m += D1;
+                }
+            }
+            fn[n] = n + 1;
+            fm[n] = n * 1.0;
+        }
+        k[1][1] = 0.0;
+
+        _epoch = epoch;
+        _model = model;
+        _release_date = release_date;
         _c = c;
         _cd = cd;
         _p = snorm;
@@ -328,39 +375,14 @@ class GeoMag{
         _fm = fm;
         _k = k;
     }
+
+
+
+
+  }
 }
 
 
-//     def _read_coefficients_data_from_file(self):
-//         """Read coefficients data from file to be processed by ``_load_coefficients``."""
-//         data = []
-
-//         model_filename = self._get_model_filename()
-
-//         with open(model_filename) as coefficients_file:
-//             # READ WORLD MAGNETIC MODEL SPHERICAL HARMONIC COEFFICIENTS
-//             line_data = coefficients_file.readline()
-//             line_values = line_data.split()
-//             if len(line_values) != 3:
-//                 raise ValueError("Invalid header in model file")
-//             epoch, model, release_date = (t(s) for t, s in zip((float, str, str), line_values))
-
-//             while True:
-//                 line_data = coefficients_file.readline()
-
-//                 # CHECK FOR LAST LINE IN FILE
-//                 if line_data[:4] == "9999":
-//                     break
-
-//                 # END OF FILE NOT ENCOUNTERED, GET VALUES
-//                 line_values = line_data.split()
-//                 if len(line_values) != 6:
-//                     raise ValueError("Corrupt record in model file")
-//                 n, m, gnm, hnm, dgnm, dhnm = (t(s) for t, s in zip((int, int, float, float, float, float), line_values))
-
-//                 data.append((n, m, gnm, hnm, dgnm, dhnm))
-
-//         return (epoch, model, release_date), data
 
 //     def calculate(
 //         self,
