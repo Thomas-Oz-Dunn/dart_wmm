@@ -151,17 +151,14 @@ class GeoMagUncertaintyResult{
 
 }
 
-///     Dart port of Python port of the Legacy C code provided by NOAA for the World Magnetic Model (WMM).
+/// Dart port of Python port of the Legacy C code provided by NOAA for the World Magnetic Model (WMM).
 ///     
-///     It defaults to using the WMM-2020 Coefficient file (WMM.COF) valid for 2020.0 - 2025.0.
-///     Included are the following coefficient files:
-///     .. table::
-///        :widths: auto
-///        ==============  ==========  ===============  ==========
-///        File            Model       Life Span        Creation
-///        ==============  ==========  ===============  ==========
-///        WMM.COF         WMM-2020    2020.0 - 2025.0  12/10/2019
-///        ==============  ==========  ===============  ==========
+/// It defaults to using the WMM-2020 Coefficient file (WMM.COF) valid for 2020.0 - 2025.0.
+/// Included are the following coefficient files:
+/// 
+///     | File           | Model      | Life Span       | Creation |
+///  -  | WMM_2020.csv   |  WMM-2020  | 2020.0 - 2025.0 | 12/10/2019 |
+///  -  | WMM_2015.csv   |  WMM-2015  | 2015.0 - 2020.0 | 12/15/2014 |
 class GeoMag{
 
   var _coefficients_data;
@@ -252,6 +249,7 @@ class GeoMag{
         
         List<String> lines = new File(model_filename).readAsLinesSync();
 
+        // Header
         var header = LineSplitter().convert(lines[0]);
         if (header.length != 3){
             Exception("Corrupt header in model file");
@@ -260,7 +258,7 @@ class GeoMag{
         String model = header[1];
         DateTime release_date = DateTime.parse(header[2]);
 
-
+        // Coefficients
         int i =0;
         for (var line in lines){
           if (i>0){
@@ -396,10 +394,13 @@ class GeoMag{
     /// return type: GeoMagResult
     /// 
     ///  Calculate the geomagnetic declination at the Space Needle in Seattle, WA:
-    ///  - geo_mag = GeoMag()
-    ///  - result = geo_mag.calculate(glat=47.6205, glon=-122.3493, alt=0, time=2023.75)
-    ///  - print(result.d)
-    ///  - 15.25942260585284
+    ///  ```dart
+    ///   import 'dart_wmm/geomagnetic.dart'
+    ///   geo_mag = GeoMag();
+    ///   result = geo_mag.calculate(glat=47.6205, glon=-122.3493, alt=0, time=2023.75);
+    ///   print(result.d);
+    ///   15.25942260585284
+    /// ```
     GeoMagResult calculate(
       double glat,
       double glon,
