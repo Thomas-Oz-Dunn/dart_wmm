@@ -10,7 +10,7 @@ const double twoPi = pi * 2;
 const double degToRad = pi / 180.0;
 
 /// The Magnetic Components values from ``GeoMag.calculate()``.
-/// 
+///
 /// - **glat** *(float)* – Geodetic Latitude, -90.00 to +90.00 degrees (North positive, South negative)
 /// - **glon** *(float)* – Geodetic Longitude, -180.00 to +180.00 degrees (East positive, West negative)
 /// - **alt** *(float)* – Altitude, -1 to 850km referenced to the WGS 84 ellipsoid OR the Mean Sea Level (MSL)
@@ -86,20 +86,19 @@ class GeoMagResult{
             in_caution_zone = true;
         }
 
+    }
     // Calculate the uncertainty values for this ``GeoMagResult``.
     // Uncertainty estimates provided by the **WMM2015** and **WMM2020** error model for the various field components.
     // H is expressed in nT in the formula providing the error in D.
     // These values can currently only be computed for ``GeoMagResult`` between 2015.0 and 2025.0 and using a value
     // outside this will raise an Exception
-    GeoMagUncertaintyResult calculate_uncertainty() => GeoMagUncertaintyResult(result: this);
-
-    }
+    GeoMagUncertaintyResult calculate_uncertainty() => GeoMagUncertaintyResult(this);
 
 }
 
 
 /// The uncertainty values of a ``GeoMagResult``.
-/// 
+///
 /// - **f** *(float)* – Uncertainty of the Total Intensity in nT
 /// - **h** *(float)* – Uncertainty of the Horizontal Intensity in nT
 /// - **north_comp_unc** *(float)* – Uncertainty of the North Component in nT
@@ -115,9 +114,9 @@ class GeoMagUncertaintyResult{
     late double f;
     late double i;
     late double d;
-    GeoMagUncertaintyResult({
-      required GeoMagResult result
-    }){
+    GeoMagUncertaintyResult(
+      GeoMagResult result
+    ){
       if (2020.0 <= result.time.year && result.time.year <= 2025.0){
           this._error_model_wmm_2020(result);
       } else if (2015.0 <= result.time.year && result.time.year < 2020.0){
@@ -152,10 +151,10 @@ class GeoMagUncertaintyResult{
 }
 
 /// Dart port of Python port of the Legacy C code provided by NOAA for the World Magnetic Model (WMM).
-///     
+///
 /// It defaults to using the WMM-2020 Coefficient file (WMM.COF) valid for 2020.0 - 2025.0.
 /// Included are the following coefficient files:
-/// 
+///
 ///     | File           | Model      | Life Span       | Creation |
 ///  -  | WMM_2020.csv   |  WMM-2020  | 2020.0 - 2025.0 | 12/10/2019 |
 ///  -  | WMM_2015.csv   |  WMM-2015  | 2015.0 - 2020.0 | 12/15/2014 |
@@ -245,8 +244,8 @@ class GeoMag{
     /// Read coefficients data from file to be processed by ``_load_coefficients``.
     ((double, String, DateTime), List<dynamic>) _read_coefficients_data_from_file(){
         var data = [];
-        String model_filename = _get_model_filename(); 
-        
+        String model_filename = _get_model_filename();
+
         List<String> lines = new File(model_filename).readAsLinesSync();
 
         // Header
@@ -262,17 +261,17 @@ class GeoMag{
         int i =0;
         for (var line in lines){
           if (i>0){
-          
+
             var data_line = LineSplitter().convert(line);
             if (data_line.length != 6){
                 Exception("Corrupt record in model file");
             }
             data += [
-              int.parse(data_line[0]), 
-              int.parse(data_line[1]), 
-              double.parse(data_line[2]), 
-              double.parse(data_line[3]), 
-              double.parse(data_line[4]), 
+              int.parse(data_line[0]),
+              int.parse(data_line[1]),
+              double.parse(data_line[2]),
+              double.parse(data_line[3]),
+              double.parse(data_line[4]),
               double.parse(data_line[5])
             ];
           }
@@ -383,7 +382,7 @@ class GeoMag{
 
 
     /// Calculate the Magnetic Components from a latitude, longitude, altitude and date.
-    /// 
+    ///
     /// - **float glat** Geodetic Latitude, -90.00 to +90.00 degrees (North positive, South negative)
     /// - **float glon** Geodetic Longitude, -180.00 to +180.00 degrees (East positive, West negative)
     /// - **float alt** Altitude, -1 to 850km referenced to the WGS 84 ellipsoid OR the Mean Sea Level (MSL)
@@ -392,7 +391,7 @@ class GeoMag{
     /// - **bool raise_in_warning_zone** True if you want to raise a BlackoutZoneException or CautionZoneException
     ///   exception when the horizontal intensity is < 6000
     /// return type: GeoMagResult
-    /// 
+    ///
     ///  Calculate the geomagnetic declination at the Space Needle in Seattle, WA:
     ///  ```dart
     ///   import 'dart_wmm/geomagnetic.dart'
@@ -405,7 +404,7 @@ class GeoMag{
       double glat,
       double glon,
       double alt,
-      DateTime time,
+      double dec_year,
     {
         bool allow_date_outside_lifespan=false,
         bool raise_in_warning_zone=false,
@@ -436,7 +435,8 @@ class GeoMag{
 
         _load_coefficients();
 
-        Duration dt = time.difference(DateTime(_epoch.toInt()));
+        int months = (dec_year-dec_year.truncate() * 12).toInt();
+        Duration dt = DateTime(dec_year.truncate(), months).difference(DateTime(_epoch.toInt()));
         if (dt.inDays < 0.0 || dt.inDays > (5.0*365.25) && !allow_date_outside_lifespan){
             Exception("Time extends beyond model 5-year life span");
         }
@@ -466,12 +466,12 @@ class GeoMag{
         for (var m = 2; m<_maxord + 1; m+=1){
             sp[m] = sp[1] * cp[m - 1] + cp[1] * sp[m - 1];
             cp[m] = cp[1] * cp[m - 1] - sp[1] * sp[m - 1];
-          
+
         }
 
         double aor = re / r;
         double ar = aor * aor;
-        double br = 0.0; 
+        double br = 0.0;
         double bt = 0.0;
         double bp = 0.0;
         double bpp = 0.0;
@@ -553,7 +553,7 @@ class GeoMag{
         var by = bp;
         var bz = bt * sa - br * ca;
 
-        GeoMagResult result = GeoMagResult(time, alt, glat, glon);
+        GeoMagResult result = GeoMagResult(dec_year, alt, glat, glon);
 
 
         // COMPUTE DECLINATION (DEC), INCLINATION (DIP) AND
@@ -581,7 +581,7 @@ class GeoMag{
             }
             else if (glat < 0.0 && glon >= 0.0){
                 result.gv = result.d + glon;
-            } 
+            }
             else if (glat < 0.0 && glon < 0.0){
                 result.gv = result.d - glon.abs();
             }
