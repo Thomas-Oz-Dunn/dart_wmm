@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
-import 'dart:async';
 
 const double twoPi = pi * 2;
 const double degToRad = pi / 180.0;
@@ -38,12 +37,12 @@ class GeoMagResult{
     // - **d**, **.dec** *(float)* – Geomagnetic Declination (Magnetic Variation)
     // - **gv** *(float)* – Magnetic grid variation if the current geodetic position is in the arctic or antarctic
 
-    GeoMagResult({
-      required this.time,
-      required this.alt,
-      required this.glat,
-      required this.glon
-    });
+    GeoMagResult(
+      this.time,
+      this.alt,
+      this.glat,
+      this.glon
+    );
 
     double dec() => this.d;
     double dip() => this.i;
@@ -169,9 +168,9 @@ class GeoMag{
   var _coefficients_data;
   var _coefficients_file;
   late int _maxord;
-  late var _epoch;
-  late var _model;
-  late int _release_date;
+  late double _epoch;
+  late String _model;
+  late DateTime _release_date;
   late var _c;
   late var _cd;
   late var _p;
@@ -196,15 +195,15 @@ class GeoMag{
       return _model;
     }
 
-    List<int> lifespan(){
+    List<DateTime> lifespan(){
       // Return the model name for the selected coefficient file.
       if (_epoch == null){
 
       }
-      return [_release_date, _release_date + 5];
+      return [_release_date, _release_date.add(Duration(days: 365 * 5))];
     }
 
-    int release_date(){
+    DateTime release_date(){
       // Return the release date for the selected coefficient file.
       if (_epoch == null){
 
@@ -307,9 +306,9 @@ class GeoMag{
         List<List<double>> k = _create_matrix(13);
 
         Iterable coefficients;
-        var epoch;
-        var model;
-        var release_date;
+        double epoch;
+        String model;
+        DateTime release_date;
 
         if (_coefficients_data != null){
             List vals = _coefficients_data;
@@ -384,11 +383,12 @@ class GeoMag{
     }
 
 
-    void calculate({
-        glat,
-        glon,
-        alt,
-        time,
+    GeoMagResult calculate(
+      double glat,
+      double glon,
+      double alt,
+      DateTime time,
+    {
         bool allow_date_outside_lifespan=false,
         bool raise_in_warning_zone=false,
     }){
@@ -432,176 +432,186 @@ class GeoMag{
         double b = 6356.7523142;
         double re = 6371.2;
 
-        var a2 = a * a;
-        var b2 = b * b;
-        var c2 = a2 - b2;
-        var a4 = a2 * a2;
-        var b4 = b2 * b2;
-        var c4 = a4 - b4;
+        double a2 = a * a;
+        double b2 = b * b;
+        double c2 = a2 - b2;
+        double a4 = a2 * a2;
+        double b4 = b2 * b2;
+        double c4 = a4 - b4;
 
         _load_coefficients();
 
+        //  TODO #1: Legacy C code static vars for speed
+        //   Decide to either:
+        //    1. Pull out the tracking of previous values
+        //         which are in the legacy c app for speeding it up for getting the Secular Change
+        //    2. Remove them
+        //  otime = oalt = olat = olon = -1000.0
+
+        Duration dt = time.difference(DateTime(_epoch.toInt()));
+        if (dt.inDays < 0.0 || dt.inDays > (5.0*365.25) && !allow_date_outside_lifespan){
+            Exception("Time extends beyond model 5-year life span");
+        }
+
+        double rlon = degToRad * glon;
+        double rlat = degToRad * glat;
+        double srlon = sin(rlon);
+        double srlat = sin(rlat);
+        double crlon = cos(rlon);
+        double crlat = cos(rlat);
+        double srlat2 = srlat * srlat;
+        double crlat2 = crlat * crlat;
+        sp[1] = srlon;
+        cp[1] = crlon;
+
+        //  CONVERT FROM GEODETIC COORDINATES TO SPHERICAL COORDINATES
+        double q = sqrt(a2 - c2 * srlat2);
+        double q1 = alt * q;
+        double q2 = ((q1 + a2) / (q1 + b2)) * ((q1 + a2) / (q1 + b2));
+        double ct = srlat / sqrt(q2 * crlat2 + srlat2);
+        double st = sqrt(1.0 - (ct * ct));
+        double r2 = (alt * alt) + 2.0 * q1 + (a4 - c4 * srlat2) / (q * q);
+        double r = sqrt(r2);
+        double d = sqrt(a2 * crlat2 + b2 * srlat2);
+        double ca = (alt + d) / r;
+        double sa = c2 * crlat * srlat / (r * d);
+        for (var m = 2; m<_maxord + 1; m+=1){
+            sp[m] = sp[1] * cp[m - 1] + cp[1] * sp[m - 1];
+            cp[m] = cp[1] * cp[m - 1] - sp[1] * sp[m - 1];
+          
+        }
+
+        double aor = re / r;
+        double ar = aor * aor;
+        double br = 0.0; 
+        double bt = 0.0;
+        double bp = 0.0;
+        double bpp = 0.0;
+
+        for (int n=1; n<_maxord+1; n+=1){
+          ar = ar * aor;
+          var m = 0;
+          var D3 = 1;
+          var D4 = (n + m + D3) / D3;
+          while (D4 > 0){
+            //  COMPUTE UNNORMALIZED ASSOCIATED LEGENDRE POLYNOMIALS
+            //  AND DERIVATIVES VIA RECURSION RELATIONS
+            if (n == m){
+                _p[n + m * 13] = st * _p[n - 1 + (m - 1) * 13];
+                dp[m][n] = st * dp[m - 1][n - 1] + ct * _p[n - 1 + (m - 1) * 13];
+            } else if (n == 1 && m == 0){
+                _p[n + m * 13] = ct * _p[n - 1 + m * 13];
+                dp[m][n] = ct * dp[m][n - 1] - st * _p[n - 1 + m * 13];
+            }
+            else if (n > 1 && n != m){
+                if (m > n - 2){
+                    _p[n - 2 + m * 13] = 0.0;
+                }
+                if (m > n - 2){
+                    dp[m][n - 2] = 0.0;
+                }
+                _p[n + m * 13] = ct * _p[n - 1 + m * 13] - _k[m][n] * _p[n - 2 + m * 13];
+                dp[m][n] = ct * dp[m][n - 1] - st * _p[n - 1 + m * 13] - _k[m][n] * dp[m][n - 2];
+            }
+
+            // # TIME ADJUST THE GAUSS COEFFICIENTS
+            tc[m][n] = _c[m][n] + dt * _cd[m][n];
+            if (m != 0){
+                tc[n][m - 1] = _c[n][m - 1] + dt * _cd[n][m - 1];
+            }
+
+            // ACCUMULATE TERMS OF THE SPHERICAL HARMONIC EXPANSIONS
+            var par = ar * _p[n + m * 13];
+            var temp1;
+            var temp2;
+            if (m == 0){
+                temp1 = tc[m][n] * cp[m];
+                temp2 = tc[m][n] * sp[m];
+            }
+            else{
+
+                temp1 = tc[m][n] * cp[m] + tc[n][m - 1] * sp[m];
+                temp2 = tc[m][n] * sp[m] - tc[n][m - 1] * cp[m];
+            }
+            bt = bt - ar * temp1 * dp[m][n];
+            bp += _fm[m] * temp2 * par;
+            br += _fn[n] * temp1 * par;
+
+            // SPECIAL CASE:  NORTH/SOUTH GEOGRAPHIC POLES
+            if (st == 0.0 && m == 1){
+                if (n == 1){
+                    pp[n] = pp[n - 1];
+                } else{
+                    pp[n] = ct * pp[n - 1] - _k[m][n] * pp[n - 2];
+                }
+                bpp += _fm[m] * temp2 * ar * pp[n];
+            }
+
+            D4 -= 1;
+            m += D3;
+
+          }
+        }
+
+        if (st == 0.0){
+            bp = bpp;
+        } else{
+            bp /= st;
+        }
+
+        //  ROTATE MAGNETIC VECTOR COMPONENTS FROM SPHERICAL TO
+        //  GEODETIC COORDINATES
+        var bx = -bt * ca - br * sa;
+        var by = bp;
+        var bz = bt * sa - br * ca;
+
+        GeoMagResult result = GeoMagResult(time, alt, glat, glon);
+
+
+        // COMPUTE DECLINATION (DEC), INCLINATION (DIP) AND
+        // TOTAL INTENSITY (TI)
+        var bh = sqrt((bx * bx) + (by * by));
+        result.f = sqrt((bh * bh) + (bz * bz));
+        result.d = atan2(by, bx) / degToRad;
+        result.i = atan2(bz, bh) / degToRad;
+
+
+        // COMPUTE MAGNETIC GRID VARIATION IF THE CURRENT
+        // GEODETIC POSITION IS IN THE ARCTIC OR ANTARCTIC
+        // (I.E. GLAT > +55 DEGREES OR GLAT < -55 DEGREES)
+        //  OTHERWISE, SET MAGNETIC GRID VARIATION TO -999.0
+        result.gv = -999.0;
+        double gv_default = -999.0;
+
+        if (glat.abs() >= 55.0){
+
+            if (glat > 0.0 && glon >= 0.0){
+                result.gv = result.d - glon;
+            }
+            if (glat > 0.0 && glon < 0.0){
+                result.gv = result.d + glon.abs();
+            }
+            if (glat < 0.0 && glon >= 0.0){
+                result.gv = result.d + glon;
+            } 
+            if (glat < 0.0 && glon < 0.0){
+                result.gv = result.d - glon.abs();
+            }
+            if (result.gv > 180.0){
+                result.gv -= 360.0;
+            }
+            if (result.gv < -180.0){
+                result.gv += 360.0;
+            }
+        }
+
+        if (result.gv == gv_default){
+            // result.gv = null;
+        }
+
+        result.calculate(raise_in_warning_zone);
+      return result;
     }
-
-
-
-//         # TODO #1: Legacy C code static vars for speed
-//         #  Decide to either:
-//         #   1. Pull out the tracking of previous values
-//         #        which are in the legacy c app for speeding it up for getting the Secular Change
-//         #   2. Remove them
-//         # otime = oalt = olat = olon = -1000.0
-
-//         dt = time - self._epoch
-//         # TODO #1: Legacy C code static vars for speed
-//         # if otime < 0.0 and (dt < 0.0 or dt > 5.0) and not allow_date_past_lifespan:
-//         if True and (dt < 0.0 or dt > 5.0) and not allow_date_outside_lifespan:
-//             raise ValueError("Time extends beyond model 5-year life span")
-
-//         rlon = math.radians(glon)
-//         rlat = math.radians(glat)
-//         srlon = math.sin(rlon)
-//         srlat = math.sin(rlat)
-//         crlon = math.cos(rlon)
-//         crlat = math.cos(rlat)
-//         srlat2 = srlat * srlat
-//         crlat2 = crlat * crlat
-//         sp[1] = srlon
-//         cp[1] = crlon
-
-//         # CONVERT FROM GEODETIC COORDINATES TO SPHERICAL COORDINATES
-//         # TODO #1: Legacy C code static vars for speed
-//         # if alt != oalt or glat != olat:
-//         if True:
-//             q = math.sqrt(a2 - c2 * srlat2)
-//             q1 = alt * q
-//             q2 = ((q1 + a2) / (q1 + b2)) * ((q1 + a2) / (q1 + b2))
-//             ct = srlat / math.sqrt(q2 * crlat2 + srlat2)
-//             st = math.sqrt(1.0 - (ct * ct))
-//             r2 = (alt * alt) + 2.0 * q1 + (a4 - c4 * srlat2) / (q * q)
-//             r = math.sqrt(r2)
-//             d = math.sqrt(a2 * crlat2 + b2 * srlat2)
-//             ca = (alt + d) / r
-//             sa = c2 * crlat * srlat / (r * d)
-//         # TODO #1: Legacy C code static vars for speed
-//         # if glon != olon:
-//         if True:
-//             for m in range(2, self._maxord + 1):
-//                 sp[m] = sp[1] * cp[m - 1] + cp[1] * sp[m - 1]
-//                 cp[m] = cp[1] * cp[m - 1] - sp[1] * sp[m - 1]
-//         aor = re / r
-//         ar = aor * aor
-//         br = bt = bp = bpp = 0.0
-//         for n in range(1, self._maxord + 1):
-//             ar = ar * aor
-//             m = 0
-//             D3 = 1  # noqa pyCharm: Variable in function should be lowercase
-//             D4 = (n + m + D3) / D3  # noqa pyCharm: Variable in function should be lowercase
-//             while D4 > 0:
-//                 # COMPUTE UNNORMALIZED ASSOCIATED LEGENDRE POLYNOMIALS
-//                 # AND DERIVATIVES VIA RECURSION RELATIONS
-//                 # TODO #1: Legacy C code static vars for speed
-//                 # if alt != oalt or glat != olat:
-//                 if True:
-//                     if n == m:
-//                         self._p[n + m * 13] = st * self._p[n - 1 + (m - 1) * 13]
-//                         dp[m][n] = st * dp[m - 1][n - 1] + ct * self._p[n - 1 + (m - 1) * 13]
-//                     elif n == 1 and m == 0:
-//                         self._p[n + m * 13] = ct * self._p[n - 1 + m * 13]
-//                         dp[m][n] = ct * dp[m][n - 1] - st * self._p[n - 1 + m * 13]
-//                     elif n > 1 and n != m:
-//                         if m > n - 2:
-//                             self._p[n - 2 + m * 13] = 0.0
-//                         if m > n - 2:
-//                             dp[m][n - 2] = 0.0
-//                         self._p[n + m * 13] = ct * self._p[n - 1 + m * 13] - self._k[m][n] * self._p[n - 2 + m * 13]
-//                         dp[m][n] = ct * dp[m][n - 1] - st * self._p[n - 1 + m * 13] - self._k[m][n] * dp[m][n - 2]
-
-//                 # TIME ADJUST THE GAUSS COEFFICIENTS
-//                 # TODO #1: Legacy C code static vars for speed
-//                 # if time != otime:
-//                 if True:
-//                     tc[m][n] = self._c[m][n] + dt * self._cd[m][n]
-//                     if m != 0:
-//                         tc[n][m - 1] = self._c[n][m - 1] + dt * self._cd[n][m - 1]
-
-//                 # ACCUMULATE TERMS OF THE SPHERICAL HARMONIC EXPANSIONS
-//                 par = ar * self._p[n + m * 13]
-//                 if m == 0:
-//                     temp1 = tc[m][n] * cp[m]
-//                     temp2 = tc[m][n] * sp[m]
-//                 else:
-//                     temp1 = tc[m][n] * cp[m] + tc[n][m - 1] * sp[m]
-//                     temp2 = tc[m][n] * sp[m] - tc[n][m - 1] * cp[m]
-//                 bt = bt - ar * temp1 * dp[m][n]
-//                 bp += self._fm[m] * temp2 * par
-//                 br += self._fn[n] * temp1 * par
-
-//                 # SPECIAL CASE:  NORTH/SOUTH GEOGRAPHIC POLES
-//                 if st == 0.0 and m == 1:
-//                     if n == 1:
-//                         pp[n] = pp[n - 1]
-//                     else:
-//                         pp[n] = ct * pp[n - 1] - self._k[m][n] * pp[n - 2]
-//                     parp = ar * pp[n]
-//                     bpp += self._fm[m] * temp2 * parp
-
-//                 D4 -= 1
-//                 m += D3
-
-//         if st == 0.0:
-//             bp = bpp
-//         else:
-//             bp /= st
-
-//         # ROTATE MAGNETIC VECTOR COMPONENTS FROM SPHERICAL TO
-//         # GEODETIC COORDINATES
-//         bx = -bt * ca - br * sa
-//         by = bp
-//         bz = bt * sa - br * ca
-
-//         result = GeoMagResult(time, alt, glat, glon)
-
-//         # COMPUTE DECLINATION (DEC), INCLINATION (DIP) AND
-//         # TOTAL INTENSITY (TI)
-//         bh = math.sqrt((bx * bx) + (by * by))
-//         result.f = math.sqrt((bh * bh) + (bz * bz))
-//         result.d = math.degrees(math.atan2(by, bx))
-//         result.i = math.degrees(math.atan2(bz, bh))
-
-//         # COMPUTE MAGNETIC GRID VARIATION IF THE CURRENT
-//         # GEODETIC POSITION IS IN THE ARCTIC OR ANTARCTIC
-//         # (I.E. GLAT > +55 DEGREES OR GLAT < -55 DEGREES)
-//         #
-//         # OTHERWISE, SET MAGNETIC GRID VARIATION TO -999.0
-//         result.gv = gv_default = -999.0
-//         if math.fabs(glat) >= 55.0:
-//             if glat > 0.0 and glon >= 0.0:
-//                 result.gv = result.d - glon
-//             if glat > 0.0 and glon < 0.0:  # noqa pyCharm: simplify chained comparison
-//                 result.gv = result.d + math.fabs(glon)
-//             if glat < 0.0 and glon >= 0.0:  # noqa pyCharm: simplify chained comparison
-//                 result.gv = result.d + glon
-//             if glat < 0.0 and glon < 0.0:
-//                 result.gv = result.d - math.fabs(glon)
-//             if result.gv > +180.0:
-//                 result.gv -= 360.0
-//             if result.gv < -180.0:
-//                 result.gv += 360.0
-//         if result.gv == gv_default:
-//             result.gv = None
-
-//         result.calculate(raise_in_warning_zone)
-
-//         # TODO #1: Legacy C code static vars for speed
-//         # otime = time
-//         # oalt = alt
-//         # olat = glat
-//         # olon = glon
-
-//         return result
-
-
 
   }
 }
