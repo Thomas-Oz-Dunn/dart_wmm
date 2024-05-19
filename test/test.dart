@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:test/test.dart';
 
 import '../src/geomagnetic.dart';
@@ -76,6 +77,61 @@ bool test_static_values_2015(){
 
     }
 
+    List<double> get_test_values(String test_parameters){
+        List<String> splits = test_parameters.replaceAll(' ', '').split(',');
+        return splits.map(
+          (e) => double.parse(e)
+        ).toList();
+    }
+
+    bool run_tests(){
+      GeoMag geo_mag = GeoMag();
+      List<bool> t = [];
+      for (String test_filename in ['test\\WMM2015testvalues.txt', 'test\\WMM2020testvalues.txt']){
+        File f = File(test_filename);
+        List<String> lines = f.readAsLinesSync();
+        int i = 0;
+        List<bool> res = [];
+        for (var line in lines){
+
+          if (line[0] != "#"){
+            var vals = get_test_values(line);
+            var time = vals[0];
+            var alt = vals[1];
+            var glat = vals[2];
+            var glon = vals[3];
+            var x = vals[4];
+            var y = vals[5];
+            var z = vals[6];
+            var h = vals[7];
+            var f = vals[8];
+            var i = vals[9];
+            var d = vals[10];
+            var gv = vals[11];
+            var result = geo_mag.calculate(glat, glon, alt, time);
+            var gv_test = result.gv == null ? -999: result.gv;
+
+            res += [
+              closeTo(x, 0.1).matches(result.north_comp, {false: 'Row $i: X (nT) expected $x, result ${result.north_comp}'}) &&
+              closeTo(y, 0.1).matches(result.east_comp, {false: 'Row $i: Y (nT) expected $y, result ${result.east_comp}'}) &&
+              closeTo(z, 0.1).matches(result.up_comp, {false: 'Row $i: Z (nT) expected $z, result ${result.up_comp}'}) &&
+              closeTo(h, 0.1).matches(result.h, {false: 'Row $i: H (nT) expected $h, result ${result.h}'}) &&
+              closeTo(f, 0.1).matches(result.f, {false: 'Row $i: F (nT) expected $f, result ${result.f}'}) &&
+              closeTo(i, 0.01).matches(result.i, {false: 'Row $i: I (Deg) expected $i, result ${result.i}'}) &&
+              closeTo(d, 0.01).matches(result.d, {false: 'Row $i: D (Deg) expected $d, result ${result.d}'}) &&
+              closeTo(gv, 0.01).matches(gv_test, {false: "Row ${i}: GV (Deg) expected ${gv}, result ${result.gv}"})
+            ];
+          }
+          i += 1;
+        }
+        print(res);
+        t += [!res.any((element) => (element==false))];
+      }
+      print(t);
+      return !t.any((element) => element==false);
+    }
+
+
 void main() {
   
   test('test_calculate_uncertainty', test_calculate_uncertainty);
@@ -86,145 +142,8 @@ void main() {
   test('test_static_values_2020', test_static_values_2020);
   test('test_uncertainty_degrees_2015', test_uncertainty_degrees_2015);
   test('test_uncertainty_degrees_2022', test_uncertainty_degrees_2022);
-
+  test('run_tests', run_tests);
 }
-
-// class TestGeoMagCoefficients(TestCase):
-//     def get_test_values(self, test_parameter, style):
-//         if style == 0:
-//             print(len(test_parameter.split()))
-//             time, alt, glat, glon, d, i, h, x, y, z, f, gv, _, _, _, _, _, _, _ = (
-//                 t(s)
-//                 for t, s in zip(
-//                     (
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                     ),
-//                     test_parameter.split(),
-//                 )
-//             )
-
-//         elif style == 1:
-//             time, alt, glat, glon, x, y, z, h, f, i, d, gv, _, _, _, _, _, _, _ = (
-//                 t(s)
-//                 for t, s in zip(
-//                     (
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                     ),
-//                     test_parameter.split(),
-//                 )
-//             )
-
-//         else:
-//             time, alt, glat, glon, d, i, h, x, y, z, f, _, _, _, _, _, _, _ = (
-//                 t(s)
-//                 for t, s in zip(
-//                     (
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                         float,
-//                     ),
-//                     test_parameter.split(),
-//                 )
-//             )
-//             gv = None
-
-//         return time, alt, glat, glon, x, y, z, h, f, i, d, gv
-
-//     def run_tests(self, geo_mag, test_filename, style):
-//         with open(get_test_filename(test_filename)) as test_values_file:
-//             for row, test_parameter in enumerate(test_values_file):
-//                 if test_parameter[0] == "#":
-//                     continue
-
-//                 time, alt, glat, glon, x, y, z, h, f, i, d, gv = self.get_test_values(test_parameter, style)
-
-//                 result = geo_mag.calculate(glat, glon, alt, time)
-//                 gv_test = -999 if result.gv is None else result.gv
-
-//                 self.assertAlmostEqual(x, result.x, 1, f"Row {row}: X (nT) expected {x}, result {result.x}")
-//                 self.assertAlmostEqual(y, result.y, 1, f"Row {row}: Y (nT) expected {y}, result {result.y}")
-//                 self.assertAlmostEqual(z, result.z, 1, f"Row {row}: Z (nT) expected {z}, result {result.z}")
-//                 self.assertAlmostEqual(h, result.h, 1, f"Row {row}: H (nT) expected {h}, result {result.h}")
-//                 self.assertAlmostEqual(f, result.f, 1, f"Row {row}: F (nT) expected {f}, result {result.f}")
-//                 self.assertAlmostEqual(i, result.i, 2, f"Row {row}: I (Deg) expected {i}, result {result.i}")
-//                 self.assertAlmostEqual(d, result.d, 2, f"Row {row}: D (Deg) expected {d}, result {result.d}")
-//                 if style != 2:
-//                     self.assertAlmostEqual(gv, gv_test, 2, f"Row {row}: GV (Deg) expected {gv}, result {result.gv}")
-
-//     def test_calculate_declination_from_2010_wmm_style_0_file(self):
-//         self.run_tests(GeoMag(coefficients_file="wmm/WMM_2010.COF"), "test_values/WMM2010testvalues.txt", 0)
-
-//     def test_calculate_declination_from_2015_wmm_style_1_file(self):
-//         self.run_tests(GeoMag(coefficients_file="wmm/WMM_2015.COF"), "test_values/WMM2015testvalues.txt", 1)
-
-//     def test_calculate_declination_from_2015_wmm_style_1_data(self):
-//         self.run_tests(GeoMag(coefficients_data=WMM_2015), "test_values/WMM2015testvalues.txt", 1)
-
-//     def test_calculate_declination_from_2015v2_wmm_style_1_file(self):
-//         self.run_tests(GeoMag(coefficients_file="wmm/WMM_2015v2.COF"), "test_values/WMM2015v2testvalues.txt", 1)
-
-//     def test_calculate_declination_from_2015v2_wmm_style_1_data(self):
-//         self.run_tests(GeoMag(coefficients_data=WMM_2015v2), "test_values/WMM2015v2testvalues.txt", 1)
-
-//     def test_calculate_declination_from_2020_wmm_style_1_file(self):
-//         self.run_tests(GeoMag(), "test_values/WMM2020testvalues.txt", 1)
-
-//     def test_calculate_declination_from_2020_wmm_style_1_data(self):
-//         self.run_tests(GeoMag(coefficients_data=WMM_2020), "test_values/WMM2020testvalues.txt", 1)
-
-//     def test_calculate_declination_from_2020_wmm_style_2(self):
-//         self.run_tests(GeoMag(), "test_values/WMM2020_TEST_VALUES.txt", 2)
 
 
 // class TestGeoMag(TestCase):

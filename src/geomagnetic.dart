@@ -4,7 +4,6 @@ Based on pygeomag
 */
 import 'dart:io';
 import 'dart:math';
-import 'dart:convert';
 
 const double twoPi = pi * 2;
 const double degToRad = pi / 180.0;
@@ -242,7 +241,6 @@ class GeoMag{
     /// Read coefficients data from file to be processed by ``_load_coefficients``.
     ((double, String, DateTime), List<dynamic>) _read_coefficients_data_from_file(){
         File model_filename = _get_model_filename();
-        print(model_filename);
         List<String> lines = model_filename.readAsLinesSync();
 
         // Header
