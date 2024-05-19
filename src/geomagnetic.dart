@@ -25,7 +25,7 @@ const double degToRad = pi / 180.0;
 /// - **gv** *(float)* – Magnetic grid variation if the current geodetic position is in the arctic or antarctic
 
 class GeoMagResult{
-    DateTime time;
+    double dec_year;
     double alt;
     double glat;
     double glon;
@@ -41,7 +41,7 @@ class GeoMagResult{
     bool in_caution_zone = false;
 
     GeoMagResult(
-      this.time,
+      this.dec_year,
       this.alt,
       this.glat,
       this.glon
@@ -117,9 +117,9 @@ class GeoMagUncertaintyResult{
     GeoMagUncertaintyResult(
       GeoMagResult result
     ){
-      if (2020.0 <= result.time.year && result.time.year <= 2025.0){
+      if (2020.0 <= result.dec_year && result.dec_year <= 2025.0){
           this._error_model_wmm_2020(result);
-      } else if (2015.0 <= result.time.year && result.time.year < 2020.0){
+      } else if (2015.0 <= result.dec_year && result.dec_year < 2020.0){
           this._error_model_wmm_2015(result);
       } else{
         Exception("GeoMagResult outside of known uncertainty estimates.");
@@ -163,7 +163,7 @@ class GeoMag{
   var _coefficients_data;
   var _coefficients_file;
   late int _maxord;
-  late double _epoch;
+  double? _epoch;
   late String _model;
   late DateTime _release_date;
   late var _c;
@@ -187,7 +187,7 @@ class GeoMag{
     model(){
       // Return the life span for the selected coefficient file.
       if (_epoch == null){
-
+        _load_coefficients();
       }
       return _model;
     }
@@ -195,7 +195,7 @@ class GeoMag{
     List<DateTime> lifespan(){
       // Return the model name for the selected coefficient file.
       if (_epoch == null){
-
+        _load_coefficients();
       }
       return [_release_date, _release_date.add(Duration(days: 365 * 5))];
     }
@@ -203,53 +203,52 @@ class GeoMag{
     DateTime release_date(){
       // Return the release date for the selected coefficient file.
       if (_epoch == null){
-
+        _load_coefficients();
       }
       return _release_date;
     }
 
     /// Determine the model filename to load the coefficients from.
-    String _get_model_filename(){
+    File _get_model_filename(){
       if (_coefficients_file != null){
         if (_coefficients_file[0] == "/" || _coefficients_file[0] == "\\"){
           return _coefficients_file;
         }
       }
 
-      File filepath = File('.');
-      String sep = (filepath.path.contains("/"))? "/" : "\\";
-
+      String sep = (File('.').absolute.path.contains("/"))? "/" : "\\";
+      File filepath = File('.${sep}src');
       if (_coefficients_file != null){
-          return filepath.parent.path + sep + _coefficients_file;
+          return File(filepath.parent.path + sep + _coefficients_file);
       }
 
       _coefficients_file = "wmm${sep}WMM.csv";
-      var wmm_filepath = filepath.parent.path + sep + _coefficients_file;
+      File wmm_filepath = File(filepath.parent.path + sep + _coefficients_file);
 
-      if (File(wmm_filepath).existsSync()){
+      if (wmm_filepath.existsSync()){
           _coefficients_file = wmm_filepath;
           return wmm_filepath;
       }
       _coefficients_file = "WMM.csv";
-      var wmm_filepath2 = filepath.parent.path + sep + _coefficients_file;
+      File wmm_filepath2 = File(filepath.parent.path + sep + _coefficients_file);
 
-      if (File(wmm_filepath2).existsSync()){
+      if (wmm_filepath2.existsSync()){
           _coefficients_file = wmm_filepath2;
           return wmm_filepath2;
       } else{
-        return wmm_filepath;
+        return File('src${sep}wmm${sep}WMM.csv');
       }
     }
 
     /// Read coefficients data from file to be processed by ``_load_coefficients``.
     ((double, String, DateTime), List<dynamic>) _read_coefficients_data_from_file(){
         var data = [];
-        String model_filename = _get_model_filename();
+        File model_filename = _get_model_filename();
 
-        List<String> lines = new File(model_filename).readAsLinesSync();
+        List<String> lines = model_filename.readAsLinesSync();
 
         // Header
-        var header = LineSplitter().convert(lines[0]);
+        var header = lines[0].replaceAll(' ', '').split(',');
         if (header.length != 3){
             Exception("Corrupt header in model file");
         }
@@ -258,15 +257,15 @@ class GeoMag{
         DateTime release_date = DateTime.parse(header[2]);
 
         // Coefficients
-        int i =0;
+        int i = 0;
         for (var line in lines){
           if (i>0){
 
-            var data_line = LineSplitter().convert(line);
+            var data_line = line.replaceAll(' ', '').split(',');
             if (data_line.length != 6){
                 Exception("Corrupt record in model file");
             }
-            data += [
+            var line_list = [
               int.parse(data_line[0]),
               int.parse(data_line[1]),
               double.parse(data_line[2]),
@@ -274,6 +273,7 @@ class GeoMag{
               double.parse(data_line[4]),
               double.parse(data_line[5])
             ];
+            data += [line_list];
           }
           i += 1;
         }
@@ -291,11 +291,6 @@ class GeoMag{
 
     /// Load the coefficients model to calculate the Magnetic Components from.
     void _load_coefficients(){
-
-        if (_epoch != null){
-            return;
-        }
-
         List<List<double>> c = _create_matrix(13);
         List<List<double>> cd = _create_matrix(13);
         List<double> snorm = _create_list(169);
@@ -322,7 +317,13 @@ class GeoMag{
         // READ WORLD MAGNETIC MODEL SPHERICAL HARMONIC COEFFICIENTS
         c[0][0] = 0.0;
         cd[0][0] = 0.0;
-        for(var (n, m, gnm, hnm, dgnm, dhnm) in coefficients){
+        for(var setsd in coefficients){
+          var n  = setsd[0];
+          var m  = setsd[1]; 
+          var gnm  = setsd[2]; 
+          var hnm  = setsd[3]; 
+          var dgnm  = setsd[4]; 
+          var dhnm = setsd[5];
             if (m > _maxord){
                 break;
             }
@@ -434,10 +435,8 @@ class GeoMag{
         double c4 = a4 - b4;
 
         _load_coefficients();
-
-        int months = (dec_year-dec_year.truncate() * 12).toInt();
-        Duration dt = DateTime(dec_year.truncate(), months).difference(DateTime(_epoch.toInt()));
-        if (dt.inDays < 0.0 || dt.inDays > (5.0*365.25) && !allow_date_outside_lifespan){
+        double dt = dec_year - _epoch!;
+        if ((dt < 0.0 || dt > 5.0) && !allow_date_outside_lifespan){
             Exception("Time extends beyond model 5-year life span");
         }
 

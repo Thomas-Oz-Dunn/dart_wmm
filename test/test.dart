@@ -10,15 +10,18 @@ bool test_calculate_uncertainty(){
     return closeTo(uncertainty.d, 0.01).matches(0.89, {});
 }
 bool test_d_property(){
-    var result = GeoMagResult(DateTime(2020), 0, 0, 0);
+    var result = GeoMagResult(2020, 0, 0, 0);
+    result.d = 5;
     return result.d == result.dec;
 }
 bool test_f_properties(){
-    var result = GeoMagResult(DateTime(2020), 0, 0, 0);
+    var result = GeoMagResult(2020, 0, 0, 0);
+    result.f = 5;
     return (result.f == result.ti && result.f == result.total_intensity);
 }
 bool test_i_property(){
-    var result = GeoMagResult(DateTime(2020), 0, 0, 0);
+    var result = GeoMagResult(2020, 0, 0, 0);
+    result.i = 5;
     return (result.i == result.dip && result.i == result.inclination);
 }
 
