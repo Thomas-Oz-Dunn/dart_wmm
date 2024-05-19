@@ -211,40 +211,38 @@ class GeoMag{
     /// Determine the model filename to load the coefficients from.
     File _get_model_filename(){
       if (_coefficients_file != null){
-        if (_coefficients_file[0] == "/" || _coefficients_file[0] == "\\"){
-          return _coefficients_file;
+        if (_coefficients_file is File){
+          if (_coefficients_file.existsSync()){
+            return _coefficients_file;
+          }
+        } else {
+          if (File(_coefficients_file).existsSync()){
+            return File(_coefficients_file);
+        }
+
         }
       }
 
       String sep = (File('.').absolute.path.contains("/"))? "/" : "\\";
-      File filepath = File('.${sep}src');
+      File filepath = File('./src');
       if (_coefficients_file != null){
-          return File(filepath.parent.path + sep + _coefficients_file);
+          return File(filepath.path + sep + _coefficients_file);
       }
 
       _coefficients_file = "wmm${sep}WMM.csv";
-      File wmm_filepath = File(filepath.parent.path + sep + _coefficients_file);
+      File wmm_filepath = File(filepath.path + sep + _coefficients_file);
 
       if (wmm_filepath.existsSync()){
           _coefficients_file = wmm_filepath;
           return wmm_filepath;
       }
-      _coefficients_file = "WMM.csv";
-      File wmm_filepath2 = File(filepath.parent.path + sep + _coefficients_file);
-
-      if (wmm_filepath2.existsSync()){
-          _coefficients_file = wmm_filepath2;
-          return wmm_filepath2;
-      } else{
-        return File('src${sep}wmm${sep}WMM.csv');
-      }
+      return File('src${sep}wmm${sep}WMM.csv');
     }
 
     /// Read coefficients data from file to be processed by ``_load_coefficients``.
     ((double, String, DateTime), List<dynamic>) _read_coefficients_data_from_file(){
-        var data = [];
         File model_filename = _get_model_filename();
-
+        print(model_filename);
         List<String> lines = model_filename.readAsLinesSync();
 
         // Header
@@ -257,6 +255,7 @@ class GeoMag{
         DateTime release_date = DateTime.parse(header[2]);
 
         // Coefficients
+        var data = [];
         int i = 0;
         for (var line in lines){
           if (i>0){
@@ -351,7 +350,7 @@ class GeoMag{
             int m = 0;
             int D1 = 1;
             double D2 = (n - m + D1) / D1;
-            while(D2>0){
+            while(D2>0.0){
                 k[m][n] = ((n - 1) * (n - 1)) - (m * m) / ((2 * n - 1) * (2 * n - 3));
                 if (m > 0){
                   double flnmj = sqrt((n - m + 1) * j / (n + m));
@@ -359,11 +358,11 @@ class GeoMag{
                   j = 1;
                   c[n][m - 1] = snorm[n + m * 13] * c[n][m - 1];
                   cd[n][m - 1] = snorm[n + m * 13] * cd[n][m - 1];
-                  c[m][n] = snorm[n + m * 13] * c[m][n];
-                  cd[m][n] = snorm[n + m * 13] * cd[m][n];
-                  D2 -= 1;
-                  m += D1;
                 }
+                c[m][n] = snorm[n + m * 13] * c[m][n];
+                cd[m][n] = snorm[n + m * 13] * cd[m][n];
+                D2 -= 1;
+                m += D1;
             }
             fn[n] = n + 1;
             fm[n] = n * 1.0;

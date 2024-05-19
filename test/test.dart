@@ -25,9 +25,8 @@ bool test_i_property(){
     return (result.i == result.dip && result.i == result.inclination);
 }
 
-bool test_static_values_2015(self){
-
-    var geo_mag = GeoMag(coefficients_file: "../src/wmm/WMM_2015.csv");
+bool test_static_values_2015(){
+    var geo_mag = GeoMag(coefficients_file: "src/wmm/WMM_2015.csv");
     var result = geo_mag.calculate(80, 0, 0, 2015);
     var uncertainty = GeoMagUncertaintyResult(result);
     return (
@@ -40,42 +39,42 @@ bool test_static_values_2015(self){
     );
 }
 
-//     def test_static_values_2020(self):
-//         geo_mag = GeoMag()
-//         result = geo_mag.calculate(80, 0, 0, 2020)
-//         uncertainty = GeoMagUncertaintyResult(result)
-//         self.assertEqual(uncertainty.x, 131.0)
-//         self.assertEqual(uncertainty.y, 94.0)
-//         self.assertEqual(uncertainty.z, 157.0)
-//         self.assertEqual(uncertainty.h, 128.0)
-//         self.assertEqual(uncertainty.f, 148.0)
-//         self.assertEqual(uncertainty.i, 0.21)
+  bool test_static_values_2020(){
+      var geo_mag = GeoMag();
+      var result = geo_mag.calculate(80, 0, 0, 2020);
+      var uncertainty = GeoMagUncertaintyResult(result);
+      return (
+        uncertainty.north_comp_unc == 131.0 &&
+        uncertainty.east_comp_unc == 94.0 &&
+        uncertainty.up_comp_unc == 157.0 &&
+        uncertainty.h == 128.0 &&
+        uncertainty.f == 148.0 &&
+        uncertainty.i == 0.21);
+  }
 
-//     def test_uncertainty_degrees_2015(self):
-//         geo_mag = GeoMag(coefficients_file="wmm/WMM_2015.COF")
-//         result = geo_mag.calculate(80, 0, 0, 2015.0)
-//         uncertainty = GeoMagUncertaintyResult(result)
-//         self.assertAlmostEqual(uncertainty.d, 0.85, 2)
 
-//         result = geo_mag.calculate(0, 120, 0, 2015.0)
-//         uncertainty = GeoMagUncertaintyResult(result)
-//         self.assertAlmostEqual(uncertainty.d, 0.27, 2)
+  bool test_uncertainty_degrees_2015(){
+      var geo_mag = GeoMag(coefficients_file: "src/wmm/WMM_2015.csv");
+      var result = geo_mag.calculate(80, 0, 0, 2015.0);
+      var uncertainty = GeoMagUncertaintyResult(result);
+      bool d1 = closeTo(uncertainty.d, 0.01).matches(0.85, {});
 
-//     def test_uncertainty_degrees_2022(self):
-//         geo_mag = GeoMag()
-//         result = geo_mag.calculate(80, 0, 0, 2020.0)
-//         uncertainty = GeoMagUncertaintyResult(result)
-//         self.assertAlmostEqual(uncertainty.d, 0.89, 2)
+      var result2 = geo_mag.calculate(0, 120, 0, 2015.0);
+      var uncertainty2 = GeoMagUncertaintyResult(result2);
+      return d1 && closeTo(uncertainty2.d, 0.01).matches(0.27, {});
+  }
 
-//         result = geo_mag.calculate(0, 120, 0, 2020.0)
-//         uncertainty = GeoMagUncertaintyResult(result)
-//         self.assertAlmostEqual(uncertainty.d, 0.30, 2)
+    bool test_uncertainty_degrees_2022(){
+      var geo_mag = GeoMag();
+      var result = geo_mag.calculate(80, 0, 0, 2020.0);
+      var uncertainty = GeoMagUncertaintyResult(result);
+      bool d1 = closeTo(uncertainty.d, 0.01).matches(0.89, {});
 
-//     def test_time_out_of_supported_range(self):
-//         geo_mag = GeoMag()
-//         result = geo_mag.calculate(80, 0, 0, 2026.0, allow_date_outside_lifespan=True)
-//         with self.assertRaisesRegex(ValueError, "GeoMagResult outside of known uncertainty estimates."):
-//             GeoMagUncertaintyResult(result)
+      var result2 = geo_mag.calculate(0, 120, 0, 2020.0);
+      var uncertainty2 = GeoMagUncertaintyResult(result2);
+      return d1 && closeTo(uncertainty2.d, 0.01).matches(0.3, {});
+
+    }
 
 void main() {
   
@@ -83,8 +82,10 @@ void main() {
   test('test_d_property', test_d_property);
   test('test_f_properties', test_f_properties);
   test('test_i_property', test_i_property);
-
-
+  test('test_static_values_2015', test_static_values_2015);
+  test('test_static_values_2020', test_static_values_2020);
+  test('test_uncertainty_degrees_2015', test_uncertainty_degrees_2015);
+  test('test_uncertainty_degrees_2022', test_uncertainty_degrees_2022);
 
 }
 
