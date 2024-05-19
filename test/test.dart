@@ -3,137 +3,140 @@ import 'package:test/test.dart';
 
 import '../src/geomagnetic.dart';
 
-
-bool test_calculate_uncertainty(){
-    GeoMag geo_mag = GeoMag();
-    GeoMagResult result = geo_mag.calculate(80, 0, 0, 2020);
-    GeoMagUncertaintyResult uncertainty = result.calculate_uncertainty();
-    return closeTo(uncertainty.d, 0.01).matches(0.89, {});
-}
-bool test_d_property(){
-    var result = GeoMagResult(2020, 0, 0, 0);
-    result.d = 5;
-    return result.d == result.dec;
-}
-bool test_f_properties(){
-    var result = GeoMagResult(2020, 0, 0, 0);
-    result.f = 5;
-    return (result.f == result.ti && result.f == result.total_intensity);
-}
-bool test_i_property(){
-    var result = GeoMagResult(2020, 0, 0, 0);
-    result.i = 5;
-    return (result.i == result.dip && result.i == result.inclination);
+bool test_calculate_uncertainty() {
+  GeoMag geo_mag = GeoMag();
+  GeoMagResult result = geo_mag.calculate(80, 0, 0, 2020);
+  GeoMagUncertaintyResult uncertainty = result.calculate_uncertainty();
+  return closeTo(uncertainty.d, 0.01).matches(0.89, {});
 }
 
-bool test_static_values_2015(){
-    var geo_mag = GeoMag(coefficients_file: "src/wmm/WMM_2015.csv");
-    var result = geo_mag.calculate(80, 0, 0, 2015);
-    var uncertainty = GeoMagUncertaintyResult(result);
-    return (
-      uncertainty.north_comp_unc == 138.0 &&
+bool test_d_property() {
+  var result = GeoMagResult(2020, 0, 0, 0);
+  result.d = 5;
+  return result.d == result.dec;
+}
+
+bool test_f_properties() {
+  var result = GeoMagResult(2020, 0, 0, 0);
+  result.f = 5;
+  return (result.f == result.ti && result.f == result.total_intensity);
+}
+
+bool test_i_property() {
+  var result = GeoMagResult(2020, 0, 0, 0);
+  result.i = 5;
+  return (result.i == result.dip && result.i == result.inclination);
+}
+
+bool test_static_values_2015() {
+  var geo_mag = GeoMag(coefficients_file: "src/wmm/WMM_2015.csv");
+  var result = geo_mag.calculate(80, 0, 0, 2015);
+  var uncertainty = GeoMagUncertaintyResult(result);
+  return (uncertainty.north_comp_unc == 138.0 &&
       uncertainty.east_comp_unc == 89.0 &&
       uncertainty.up_comp_unc == 165.0 &&
       uncertainty.h == 133.0 &&
       uncertainty.f == 152.0 &&
-      uncertainty.i == 0.22
-    );
+      uncertainty.i == 0.22);
 }
 
-  bool test_static_values_2020(){
-      var geo_mag = GeoMag();
-      var result = geo_mag.calculate(80, 0, 0, 2020);
-      var uncertainty = GeoMagUncertaintyResult(result);
-      return (
-        uncertainty.north_comp_unc == 131.0 &&
-        uncertainty.east_comp_unc == 94.0 &&
-        uncertainty.up_comp_unc == 157.0 &&
-        uncertainty.h == 128.0 &&
-        uncertainty.f == 148.0 &&
-        uncertainty.i == 0.21);
-  }
+bool test_static_values_2020() {
+  var geo_mag = GeoMag();
+  var result = geo_mag.calculate(80, 0, 0, 2020);
+  var uncertainty = GeoMagUncertaintyResult(result);
+  return (uncertainty.north_comp_unc == 131.0 &&
+      uncertainty.east_comp_unc == 94.0 &&
+      uncertainty.up_comp_unc == 157.0 &&
+      uncertainty.h == 128.0 &&
+      uncertainty.f == 148.0 &&
+      uncertainty.i == 0.21);
+}
 
+bool test_uncertainty_degrees_2015() {
+  var geo_mag = GeoMag(coefficients_file: "src/wmm/WMM_2015.csv");
+  var result = geo_mag.calculate(80, 0, 0, 2015.0);
+  var uncertainty = GeoMagUncertaintyResult(result);
+  bool d1 = closeTo(uncertainty.d, 0.01).matches(0.85, {});
 
-  bool test_uncertainty_degrees_2015(){
-      var geo_mag = GeoMag(coefficients_file: "src/wmm/WMM_2015.csv");
-      var result = geo_mag.calculate(80, 0, 0, 2015.0);
-      var uncertainty = GeoMagUncertaintyResult(result);
-      bool d1 = closeTo(uncertainty.d, 0.01).matches(0.85, {});
+  var result2 = geo_mag.calculate(0, 120, 0, 2015.0);
+  var uncertainty2 = GeoMagUncertaintyResult(result2);
+  return d1 && closeTo(uncertainty2.d, 0.01).matches(0.27, {});
+}
 
-      var result2 = geo_mag.calculate(0, 120, 0, 2015.0);
-      var uncertainty2 = GeoMagUncertaintyResult(result2);
-      return d1 && closeTo(uncertainty2.d, 0.01).matches(0.27, {});
-  }
+bool test_uncertainty_degrees_2022() {
+  var geo_mag = GeoMag();
+  var result = geo_mag.calculate(80, 0, 0, 2020.0);
+  var uncertainty = GeoMagUncertaintyResult(result);
+  bool d1 = closeTo(uncertainty.d, 0.01).matches(0.89, {});
 
-    bool test_uncertainty_degrees_2022(){
-      var geo_mag = GeoMag();
-      var result = geo_mag.calculate(80, 0, 0, 2020.0);
-      var uncertainty = GeoMagUncertaintyResult(result);
-      bool d1 = closeTo(uncertainty.d, 0.01).matches(0.89, {});
+  var result2 = geo_mag.calculate(0, 120, 0, 2020.0);
+  var uncertainty2 = GeoMagUncertaintyResult(result2);
+  return d1 && closeTo(uncertainty2.d, 0.01).matches(0.3, {});
+}
 
-      var result2 = geo_mag.calculate(0, 120, 0, 2020.0);
-      var uncertainty2 = GeoMagUncertaintyResult(result2);
-      return d1 && closeTo(uncertainty2.d, 0.01).matches(0.3, {});
+List<double> get_test_values(String test_parameters) {
+  List<String> splits = test_parameters.replaceAll(' ', '').split(',');
+  return splits.map((e) => double.parse(e)).toList();
+}
 
-    }
+bool run_tests() {
+  GeoMag geo_mag = GeoMag();
+  List<bool> t = [];
+  for (String test_filename in [
+    'test\\WMM2015testvalues.txt',
+    'test\\WMM2020testvalues.txt'
+  ]) {
+    File f = File(test_filename);
+    List<String> lines = f.readAsLinesSync();
+    int i = 0;
+    List<bool> res = [];
+    for (var line in lines) {
+      if (line[0] != "#") {
+        var vals = get_test_values(line);
+        var time = vals[0];
+        var alt = vals[1];
+        var glat = vals[2];
+        var glon = vals[3];
+        var x = vals[4];
+        var y = vals[5];
+        var z = vals[6];
+        var h = vals[7];
+        var f = vals[8];
+        var i = vals[9];
+        var d = vals[10];
+        var gv = vals[11];
+        var result = geo_mag.calculate(glat, glon, alt, time);
+        var gv_test = result.gv == null ? -999 : result.gv;
 
-    List<double> get_test_values(String test_parameters){
-        List<String> splits = test_parameters.replaceAll(' ', '').split(',');
-        return splits.map(
-          (e) => double.parse(e)
-        ).toList();
-    }
-
-    bool run_tests(){
-      GeoMag geo_mag = GeoMag();
-      List<bool> t = [];
-      for (String test_filename in ['test\\WMM2015testvalues.txt', 'test\\WMM2020testvalues.txt']){
-        File f = File(test_filename);
-        List<String> lines = f.readAsLinesSync();
-        int i = 0;
-        List<bool> res = [];
-        for (var line in lines){
-
-          if (line[0] != "#"){
-            var vals = get_test_values(line);
-            var time = vals[0];
-            var alt = vals[1];
-            var glat = vals[2];
-            var glon = vals[3];
-            var x = vals[4];
-            var y = vals[5];
-            var z = vals[6];
-            var h = vals[7];
-            var f = vals[8];
-            var i = vals[9];
-            var d = vals[10];
-            var gv = vals[11];
-            var result = geo_mag.calculate(glat, glon, alt, time);
-            var gv_test = result.gv == null ? -999: result.gv;
-
-            res += [
-              closeTo(x, 0.1).matches(result.north_comp, {false: 'Row $i: X (nT) expected $x, result ${result.north_comp}'}) &&
-              closeTo(y, 0.1).matches(result.east_comp, {false: 'Row $i: Y (nT) expected $y, result ${result.east_comp}'}) &&
-              closeTo(z, 0.1).matches(result.up_comp, {false: 'Row $i: Z (nT) expected $z, result ${result.up_comp}'}) &&
-              closeTo(h, 0.1).matches(result.h, {false: 'Row $i: H (nT) expected $h, result ${result.h}'}) &&
-              closeTo(f, 0.1).matches(result.f, {false: 'Row $i: F (nT) expected $f, result ${result.f}'}) &&
-              closeTo(i, 0.01).matches(result.i, {false: 'Row $i: I (Deg) expected $i, result ${result.i}'}) &&
+        res += [
+          closeTo(x, 0.1).matches(result.north_comp, {
+                false: 'Row $i: X (nT) expected $x, result ${result.north_comp}'
+              }) &&
+              closeTo(y, 0.1).matches(result.east_comp, {
+                false: 'Row $i: Y (nT) expected $y, result ${result.east_comp}'
+              }) &&
+              closeTo(z, 0.1).matches(result.up_comp,
+                  {false: 'Row $i: Z (nT) expected $z, result ${result.up_comp}'}) &&
+              closeTo(h, 0.1).matches(result.h,
+                  {false: 'Row $i: H (nT) expected $h, result ${result.h}'}) &&
+              closeTo(f, 0.1).matches(result.f,
+                  {false: 'Row $i: F (nT) expected $f, result ${result.f}'}) &&
+              closeTo(i, 0.01).matches(
+                  result.i, {false: 'Row $i: I (Deg) expected $i, result ${result.i}'}) &&
               closeTo(d, 0.01).matches(result.d, {false: 'Row $i: D (Deg) expected $d, result ${result.d}'}) &&
               closeTo(gv, 0.01).matches(gv_test, {false: "Row ${i}: GV (Deg) expected ${gv}, result ${result.gv}"})
-            ];
-          }
-          i += 1;
-        }
-        print(res);
-        t += [!res.any((element) => (element==false))];
+        ];
       }
-      print(t);
-      return !t.any((element) => element==false);
+      i += 1;
     }
-
+    print(res);
+    t += [!res.any((element) => (element == false))];
+  }
+  print(t);
+  return !t.any((element) => element == false);
+}
 
 void main() {
-  
   test('test_calculate_uncertainty', test_calculate_uncertainty);
   test('test_d_property', test_d_property);
   test('test_f_properties', test_f_properties);
@@ -144,7 +147,6 @@ void main() {
   test('test_uncertainty_degrees_2022', test_uncertainty_degrees_2022);
   test('run_tests', run_tests);
 }
-
 
 // class TestGeoMag(TestCase):
 //     def test_both_parameters_supplied_raises(self):
