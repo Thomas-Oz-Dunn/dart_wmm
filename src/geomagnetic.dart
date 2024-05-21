@@ -115,7 +115,7 @@ class GeoMagUncertaintyResult {
     }
   }
 
-  void _error_model_wmm_2015(result) {
+  void _error_model_wmm_2015(GeoMagResult result) {
     // Calculate uncertainty estimates for 2015.0 to 2020.0
     north_comp_unc = 138.0;
     east_comp_unc = 89.0;
@@ -123,10 +123,10 @@ class GeoMagUncertaintyResult {
     h = 133.0;
     f = 152.0;
     i = 0.22;
-    d = sqrt(pow(0.23, 2) + pow(5430 / result.h, 2));
+    d = sqrt(0.23 * 0.23 + 5430 / result.h * 5430 / result.h);
   }
 
-  void _error_model_wmm_2020(result) {
+  void _error_model_wmm_2020(GeoMagResult result) {
     // Calculate uncertainty estimates for 2020.0 to 2025.0.
     north_comp_unc = 131.0;
     east_comp_unc = 94.0;
@@ -134,7 +134,7 @@ class GeoMagUncertaintyResult {
     h = 128.0;
     f = 148.0;
     i = 0.21;
-    d = sqrt(pow(0.26, 2) + pow(5625 / result.h, 2));
+    d = sqrt(0.26 * 0.26 + 5625 / result.h * 5625 / result.h);
   }
 }
 

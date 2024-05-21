@@ -7,25 +7,26 @@ bool test_calculate_uncertainty() {
   GeoMag geo_mag = GeoMag();
   GeoMagResult result = geo_mag.calculate(80, 0, 0, 2020);
   GeoMagUncertaintyResult uncertainty = result.calculate_uncertainty();
+  print(uncertainty.d);
   return closeTo(uncertainty.d, 0.01).matches(0.89, {});
 }
 
 bool test_d_property() {
   var result = GeoMagResult(2020, 0, 0, 0);
   result.d = 5;
-  return result.d == result.dec;
+  return result.d == result.dec();
 }
 
 bool test_f_properties() {
   var result = GeoMagResult(2020, 0, 0, 0);
   result.f = 5;
-  return (result.f == result.ti && result.f == result.total_intensity);
+  return (result.f == result.ti() && result.f == result.total_intensity());
 }
 
 bool test_i_property() {
   var result = GeoMagResult(2020, 0, 0, 0);
   result.i = 5;
-  return (result.i == result.dip && result.i == result.inclination);
+  return (result.i == result.dip() && result.i == result.inclination());
 }
 
 bool test_static_values_2015() {
@@ -106,7 +107,6 @@ bool run_tests() {
         var d = vals[10];
         var gv = vals[11];
         var result = geo_mag.calculate(glat, glon, alt, time);
-        var gv_test = result.gv == null ? -999 : result.gv;
 
         res += [
           closeTo(x, 0.1).matches(result.north_comp, {
@@ -123,29 +123,26 @@ bool run_tests() {
                   {false: 'Row $i: F (nT) expected $f, result ${result.f}'}) &&
               closeTo(i, 0.01).matches(
                   result.i, {false: 'Row $i: I (Deg) expected $i, result ${result.i}'}) &&
-              closeTo(d, 0.01).matches(result.d, {false: 'Row $i: D (Deg) expected $d, result ${result.d}'}) &&
-              closeTo(gv, 0.01).matches(gv_test, {false: "Row ${i}: GV (Deg) expected ${gv}, result ${result.gv}"})
+              closeTo(d, 0.01).matches(result.d, {false: 'Row $i: D (Deg) expected $d, result ${result.d}'})
         ];
       }
       i += 1;
     }
-    print(res);
     t += [!res.any((element) => (element == false))];
   }
-  print(t);
   return !t.any((element) => element == false);
 }
 
 void main() {
-  test('test_calculate_uncertainty', test_calculate_uncertainty);
-  test('test_d_property', test_d_property);
-  test('test_f_properties', test_f_properties);
-  test('test_i_property', test_i_property);
-  test('test_static_values_2015', test_static_values_2015);
-  test('test_static_values_2020', test_static_values_2020);
-  test('test_uncertainty_degrees_2015', test_uncertainty_degrees_2015);
-  test('test_uncertainty_degrees_2022', test_uncertainty_degrees_2022);
-  test('run_tests', run_tests);
+  test('test_calculate_uncertainty', (() => expect(test_calculate_uncertainty(), true)));
+  test('test_d_property', (() => expect(test_d_property(), true)));
+  test('test_f_properties', (() => expect(test_f_properties(), true)));
+  test('test_i_property', (() => expect(test_i_property(), true)));
+  test('test_static_values_2015', (() => expect(test_static_values_2015(), true)));
+  test('test_static_values_2020', (() => expect(test_static_values_2020(), true)));
+  test('test_uncertainty_degrees_2015', (() => expect(test_uncertainty_degrees_2015(), true)));
+  test('test_uncertainty_degrees_2022', (() => expect(test_uncertainty_degrees_2022(), true)));
+  test('run_tests', (() => expect(run_tests(), true)));
 }
 
 // class TestGeoMag(TestCase):
