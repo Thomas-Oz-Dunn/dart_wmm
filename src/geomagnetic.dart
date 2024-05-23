@@ -50,10 +50,12 @@ class GeoMagResult {
   void calculate(bool raise_in_warning_zone) {
     // Calculate extra result values.
     // COMPUTE X, Y, Z, AND H COMPONENTS OF THE MAGNETIC FIELD
-    north_comp = f * (cos(degToRad * d) * cos(degToRad * i));
-    east_comp = f * (cos(degToRad * i) * sin(degToRad * d));
+    double cosi = cos(degToRad * i);
+    double cosd = cos(degToRad * d);
+    north_comp = f * (cosd * cosi);
+    east_comp = f * (cosi * sin(degToRad * d));
     up_comp = f * (sin(degToRad * i));
-    h = f * (cos(degToRad * i));
+    h = f * cosi;
 
     // Check if in Caution or Blackout Zones
     if (h < 2000) {
@@ -134,6 +136,7 @@ class GeoMagUncertaintyResult {
     h = 128.0;
     f = 148.0;
     i = 0.21;
+    print(result.h);
     d = sqrt(0.26 * 0.26 + 5625 / result.h * 5625 / result.h);
   }
 }
@@ -532,7 +535,12 @@ class GeoMag {
     // COMPUTE DECLINATION (DEC), INCLINATION (DIP) AND
     // TOTAL INTENSITY (TI)
     var bh = sqrt((bx * bx) + (by * by));
+    print('bh ${bh}');
+    print('bz ${bz}');
+
+
     result.f = sqrt((bh * bh) + (bz * bz));
+    print('result.f ${result.f}');
     result.d = atan2(by, bx) / degToRad;
     result.i = atan2(bz, bh) / degToRad;
 
