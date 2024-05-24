@@ -1,9 +1,10 @@
 name: dart_wmm
 description: World Magnetic Model implementation in dart
 
-publish_to: 'none' 
+publish_to: 'https://pub.dev/' 
+repository: 'https://github.com/Thomas-Oz-Dunn/dart_wmm'
 
-version: 1.0.0+2
+version: 0.0.1
 
 environment:
   sdk: '^3.3.0'

@@ -5,7 +5,7 @@ Dart implementation of NOAA's World Magnetic Model (WMM) ported from `pygeomag` 
 Add this to your `pubspec.yaml` file
 ```.yaml
 dependencies:
-  dart_wmm: ^1.0.0
+  dart_wmm: ^0.0.1
 ```
 
 # Usage
