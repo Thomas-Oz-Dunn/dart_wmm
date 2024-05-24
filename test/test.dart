@@ -3,14 +3,6 @@ import 'package:test/test.dart';
 
 import '../src/geomagnetic.dart';
 
-bool test_calculate_uncertainty() {
-  GeoMag geo_mag = GeoMag();
-  GeoMagResult result = geo_mag.calculate(80, 0, 0, 2020);
-  GeoMagUncertaintyResult uncertainty = result.calculate_uncertainty();
-  print(uncertainty.d);
-  return closeTo(uncertainty.d, 0.01).matches(0.89, {});
-}
-
 bool test_d_property() {
   var result = GeoMagResult(2020, 0, 0, 0);
   result.d = 5;
@@ -134,13 +126,12 @@ bool run_tests() {
 }
 
 void main() {
-  // test('test_calculate_uncertainty', (() => expect(test_calculate_uncertainty(), true)));
-  // test('test_d_property', (() => expect(test_d_property(), true)));
+  test('test_d_property', (() => expect(test_d_property(), true)));
   test('test_f_properties', (() => expect(test_f_properties(), true)));
-  // test('test_i_property', (() => expect(test_i_property(), true)));
-  // test('test_static_values_2015', (() => expect(test_static_values_2015(), true)));
-  // test('test_static_values_2020', (() => expect(test_static_values_2020(), true)));
-  // test('test_uncertainty_degrees_2015', (() => expect(test_uncertainty_degrees_2015(), true)));
+  test('test_i_property', (() => expect(test_i_property(), true)));
+  test('test_static_values_2015', (() => expect(test_static_values_2015(), true)));
+  test('test_static_values_2020', (() => expect(test_static_values_2020(), true)));
+  test('test_uncertainty_degrees_2015', (() => expect(test_uncertainty_degrees_2015(), true)));
   // test('test_uncertainty_degrees_2022', (() => expect(test_uncertainty_degrees_2022(), true)));
   // test('run_tests', (() => expect(run_tests(), true)));
 }
@@ -161,16 +152,6 @@ void main() {
 //         geo_mag = GeoMag()
 //         with self.assertRaisesRegex(ValueError, "Time extends beyond model 5-year life span"):
 //             geo_mag.calculate(0, 80, 0, 2030)
-
-//     def test_create_list(self):
-//         self.assertEqual(GeoMag._create_list(2), [None, None])
-//         self.assertEqual(GeoMag._create_list(3, 0), [0, 0, 0])
-//         self.assertNotEqual(GeoMag._create_list(4, 0), [1, 1, 1, 1])
-
-//     def test_create_matrix(self):
-//         self.assertEqual(GeoMag._create_matrix(2, 2), [[None, None], [None, None]])
-//         self.assertEqual(GeoMag._create_matrix(2, 3, 0), [[0, 0, 0], [0, 0, 0]])
-//         self.assertNotEqual(GeoMag._create_matrix(2, 4), [[1, 1, 1, 1], [1, 1, 1, 1]])
 
 //     def test_exception_blackout_zone_does_not_raise(self):
 //         geo_mag = GeoMag()

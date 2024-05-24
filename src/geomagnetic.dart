@@ -126,6 +126,7 @@ class GeoMagUncertaintyResult {
     f = 152.0;
     i = 0.22;
     d = sqrt(0.23 * 0.23 + 5430 / result.h * 5430 / result.h);
+    print('d $d');
   }
 
   void _error_model_wmm_2020(GeoMagResult result) {
@@ -136,8 +137,9 @@ class GeoMagUncertaintyResult {
     h = 128.0;
     f = 148.0;
     i = 0.21;
-    print(result.h);
+    print('result.h ${result.h}');
     d = sqrt(0.26 * 0.26 + 5625 / result.h * 5625 / result.h);
+    print('d $d');
   }
 }
 
@@ -422,26 +424,26 @@ class GeoMag {
 
     double rlon = degToRad * glon;
     double rlat = degToRad * glat;
-    double srlon = sin(rlon);
-    double srlat = sin(rlat);
-    double crlon = cos(rlon);
-    double crlat = cos(rlat);
-    double srlat2 = srlat * srlat;
-    double crlat2 = crlat * crlat;
-    sp[1] = srlon;
-    cp[1] = crlon;
+    double sin_rlon = sin(rlon);
+    double sin_rlat = sin(rlat);
+    double cos_rlon = cos(rlon);
+    double cos_rlat = cos(rlat);
+    double sin_rlat2 = sin_rlat * sin_rlat;
+    double cos_rlat2 = cos_rlat * cos_rlat;
+    sp[1] = sin_rlon;
+    cp[1] = cos_rlon;
 
     //  CONVERT FROM GEODETIC COORDINATES TO SPHERICAL COORDINATES
-    double q = sqrt(a2 - c2 * srlat2);
+    double q = sqrt(a2 - c2 * sin_rlat2);
     double q1 = alt * q;
     double q2 = ((q1 + a2) / (q1 + b2)) * ((q1 + a2) / (q1 + b2));
-    double ct = srlat / sqrt(q2 * crlat2 + srlat2);
+    double ct = sin_rlat / sqrt(q2 * cos_rlat2 + sin_rlat2);
     double st = sqrt(1.0 - (ct * ct));
-    double r2 = (alt * alt) + 2.0 * q1 + (a4 - c4 * srlat2) / (q * q);
-    double r = sqrt(r2);
-    double d = sqrt(a2 * crlat2 + b2 * srlat2);
+    double r2 = (alt * alt) + 2.0 * q1 + (a4 - c4 * sin_rlat2) / (q * q);
+    double r = sqrt(r2);  // km
+    double d = sqrt(a2 * cos_rlat2 + b2 * sin_rlat2);
     double ca = (alt + d) / r;
-    double sa = c2 * crlat * srlat / (r * d);
+    double sa = c2 * cos_rlat * sin_rlat / (r * d);
     for (var m = 2; m < _maxord + 1; m += 1) {
       sp[m] = sp[1] * cp[m - 1] + cp[1] * sp[m - 1];
       cp[m] = cp[1] * cp[m - 1] - sp[1] * sp[m - 1];
@@ -449,9 +451,9 @@ class GeoMag {
 
     double aor = re / r;
     double ar = aor * aor;
-    double br = 0.0;
-    double bt = 0.0;
-    double bp = 0.0;
+    double b_rad = 0.0;
+    double b_tan = 0.0;
+    double b_pol = 0.0;
     double bpp = 0.0;
 
     for (int n = 1; n < _maxord + 1; n += 1) {
@@ -489,9 +491,9 @@ class GeoMag {
         }
 
         // ACCUMULATE TERMS OF THE SPHERICAL HARMONIC EXPANSIONS
-        var par = ar * _p[n + m * 13];
-        var temp1;
-        var temp2;
+        double par = ar * _p[n + m * 13];
+        double temp1;
+        double temp2;
         if (m == 0) {
           temp1 = tc[m][n] * cp[m];
           temp2 = tc[m][n] * sp[m];
@@ -499,9 +501,9 @@ class GeoMag {
           temp1 = tc[m][n] * cp[m] + tc[n][m - 1] * sp[m];
           temp2 = tc[m][n] * sp[m] - tc[n][m - 1] * cp[m];
         }
-        bt = bt - ar * temp1 * dp[m][n];
-        bp += _fm[m] * temp2 * par;
-        br += _fn[n] * temp1 * par;
+        b_tan = b_tan - ar * temp1 * dp[m][n];
+        b_pol += _fm[m] * temp2 * par;
+        b_rad += _fn[n] * temp1 * par;
 
         // SPECIAL CASE:  NORTH/SOUTH GEOGRAPHIC POLES
         if (st == 0.0 && m == 1) {
@@ -519,16 +521,19 @@ class GeoMag {
     }
 
     if (st == 0.0) {
-      bp = bpp;
+      b_pol = bpp;
     } else {
-      bp /= st;
+      b_pol /= st;
     }
 
     //  ROTATE MAGNETIC VECTOR COMPONENTS FROM SPHERICAL TO
     //  GEODETIC COORDINATES
-    var bx = -bt * ca - br * sa;
-    var by = bp;
-    var bz = bt * sa - br * ca;
+    print('bt ${b_tan}');
+    print('br ${b_rad}');
+    var bx = -b_tan * ca - b_rad * sa;
+    print('bx ${bx}');
+    var by = b_pol;
+    var bz = b_tan * sa - b_rad * ca;
 
     GeoMagResult result = GeoMagResult(dec_year, alt, glat, glon);
 
@@ -537,7 +542,6 @@ class GeoMag {
     var bh = sqrt((bx * bx) + (by * by));
     print('bh ${bh}');
     print('bz ${bz}');
-
 
     result.f = sqrt((bh * bh) + (bz * bz));
     print('result.f ${result.f}');
@@ -554,11 +558,14 @@ class GeoMag {
     if (glat.abs() >= 55.0) {
       if (glat > 0.0 && glon >= 0.0) {
         result.gv = result.d - glon;
-      } else if (glat > 0.0 && glon < 0.0) {
+      } 
+      if (glat > 0.0 && glon < 0.0) {
         result.gv = result.d + glon.abs();
-      } else if (glat < 0.0 && glon >= 0.0) {
+      } 
+      if (glat < 0.0 && glon >= 0.0) {
         result.gv = result.d + glon;
-      } else if (glat < 0.0 && glon < 0.0) {
+      } 
+      if (glat < 0.0 && glon < 0.0) {
         result.gv = result.d - glon.abs();
       }
 
