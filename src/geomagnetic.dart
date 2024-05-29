@@ -55,6 +55,7 @@ class GeoMagResult {
     north_comp = f * (cosd * cosi);
     east_comp = f * (cosi * sin(degToRad * d));
     up_comp = f * (sin(degToRad * i));
+    // h should be e3 not e30
     h = f * cosi;
 
     // Check if in Caution or Blackout Zones
@@ -125,6 +126,7 @@ class GeoMagUncertaintyResult {
     h = 133.0;
     f = 152.0;
     i = 0.22;
+    print('result.h ${result.h}');
     d = sqrt(0.23 * 0.23 + 5430 / result.h * 5430 / result.h);
     print('d $d');
   }
@@ -395,26 +397,25 @@ class GeoMag {
   }) {
     List<List<double>> tc = _create_matrix(13);
     List<List<double>> dp = _create_matrix(13);
-    List<double> sp = _create_list(169);
-    List<double> cp = _create_list(13);
+    List<double> sinp = _create_list(169);
+    List<double> cosp = _create_list(13);
     List<double> pp = _create_list(13);
 
     // # INITIALIZE CONSTANTS
-    sp[0] = 0.0;
-    cp[0] = pp[0] = 1.0;
+    sinp[0] = 0.0;
+    cosp[0] = pp[0] = 1.0;
     dp[0][0] = 0.0;
 
     // Shape of earth
-    double a = 6378.137;
-    double b = 6356.7523142;
-    double re = 6371.2;
-
-    double a2 = a * a;
-    double b2 = b * b;
-    double c2 = a2 - b2;
-    double a4 = a2 * a2;
-    double b4 = b2 * b2;
-    double c4 = a4 - b4;
+    double aE = 6378.137;
+    double bE = 6356.7523142;
+    double rE = 6371.2;
+    double aE2 = aE * aE;
+    double bE2 = bE * bE;
+    double cE2 = aE2 - bE2;
+    double aE4 = aE2 * aE2;
+    double bE4 = bE2 * bE2;
+    double cE4 = aE4 - bE4;
 
     _load_coefficients();
     double dt = dec_year - _epoch!;
@@ -430,26 +431,26 @@ class GeoMag {
     double cos_rlat = cos(rlat);
     double sin_rlat2 = sin_rlat * sin_rlat;
     double cos_rlat2 = cos_rlat * cos_rlat;
-    sp[1] = sin_rlon;
-    cp[1] = cos_rlon;
+    sinp[1] = sin_rlon;
+    cosp[1] = cos_rlon;
 
     //  CONVERT FROM GEODETIC COORDINATES TO SPHERICAL COORDINATES
-    double q = sqrt(a2 - c2 * sin_rlat2);
+    double q = sqrt(aE2 - cE2 * sin_rlat2);
     double q1 = alt * q;
-    double q2 = ((q1 + a2) / (q1 + b2)) * ((q1 + a2) / (q1 + b2));
-    double ct = sin_rlat / sqrt(q2 * cos_rlat2 + sin_rlat2);
+    double q2 = (q1 + aE2) / (q1 + bE2);
+    double ct = sin_rlat / sqrt(q2 * q2 * cos_rlat2 + sin_rlat2);
     double st = sqrt(1.0 - (ct * ct));
-    double r2 = (alt * alt) + 2.0 * q1 + (a4 - c4 * sin_rlat2) / (q * q);
+    double r2 = (alt * alt) + 2.0 * q1 + (aE4 - cE4 * sin_rlat2) / (q * q);
     double r = sqrt(r2);  // km
-    double d = sqrt(a2 * cos_rlat2 + b2 * sin_rlat2);
+    double d = sqrt(aE2 * cos_rlat2 + bE2 * sin_rlat2);
     double ca = (alt + d) / r;
-    double sa = c2 * cos_rlat * sin_rlat / (r * d);
+    double sa = cE2 * cos_rlat * sin_rlat / (r * d);
     for (var m = 2; m < _maxord + 1; m += 1) {
-      sp[m] = sp[1] * cp[m - 1] + cp[1] * sp[m - 1];
-      cp[m] = cp[1] * cp[m - 1] - sp[1] * sp[m - 1];
+      sinp[m] = sinp[1] * cosp[m - 1] + cosp[1] * sinp[m - 1];
+      cosp[m] = cosp[1] * cosp[m - 1] - sinp[1] * sinp[m - 1];
     }
 
-    double aor = re / r;
+    double aor = rE / r;
     double ar = aor * aor;
     double b_rad = 0.0;
     double b_tan = 0.0;
@@ -464,23 +465,23 @@ class GeoMag {
       while (D4 > 0) {
         //  COMPUTE UNNORMALIZED ASSOCIATED LEGENDRE POLYNOMIALS
         //  AND DERIVATIVES VIA RECURSION RELATIONS
+        var i = n + m * 13;
+        var j = n - 1 + (m - 1) * 13;
         if (n == m) {
-          _p[n + m * 13] = st * _p[n - 1 + (m - 1) * 13];
-          dp[m][n] = st * dp[m - 1][n - 1] + ct * _p[n - 1 + (m - 1) * 13];
+          _p[i] = st * _p[j];
+          dp[m][n] = st * dp[m - 1][n - 1] + ct * _p[j];
         } else if (n == 1 && m == 0) {
-          _p[n + m * 13] = ct * _p[n - 1 + m * 13];
-          dp[m][n] = ct * dp[m][n - 1] - st * _p[n - 1 + m * 13];
+          _p[i] = ct * _p[i - 1];
+          dp[m][n] = ct * dp[m][n - 1] - st * _p[i - 1];
         } else if (n > 1 && n != m) {
           if (m > n - 2) {
-            _p[n - 2 + m * 13] = 0.0;
-          }
-          if (m > n - 2) {
+            _p[i - 2] = 0.0;
             dp[m][n - 2] = 0.0;
           }
-          _p[n + m * 13] =
-              ct * _p[n - 1 + m * 13] - _k[m][n] * _p[n - 2 + m * 13];
+          _p[i] =
+              ct * _p[i - 1] - _k[m][n] * _p[i - 2];
           dp[m][n] = ct * dp[m][n - 1] -
-              st * _p[n - 1 + m * 13] -
+              st * _p[i - 1] -
               _k[m][n] * dp[m][n - 2];
         }
 
@@ -488,19 +489,25 @@ class GeoMag {
         tc[m][n] = _c[m][n] + dt * _cd[m][n];
         if (m != 0) {
           tc[n][m - 1] = _c[n][m - 1] + dt * _cd[n][m - 1];
+          print('tc[n][m-1] ${tc[n][m-1]}');
         }
+        print('tc[m][n] ${tc[m][n]}');
 
         // ACCUMULATE TERMS OF THE SPHERICAL HARMONIC EXPANSIONS
         double par = ar * _p[n + m * 13];
         double temp1;
         double temp2;
         if (m == 0) {
-          temp1 = tc[m][n] * cp[m];
-          temp2 = tc[m][n] * sp[m];
+          temp1 = tc[m][n] * cosp[m];
+          temp2 = tc[m][n] * sinp[m];
         } else {
-          temp1 = tc[m][n] * cp[m] + tc[n][m - 1] * sp[m];
-          temp2 = tc[m][n] * sp[m] - tc[n][m - 1] * cp[m];
+          var tc2 = tc[n][m - 1];
+          temp1 = tc[m][n] * cosp[m] + tc2 * sinp[m];
+          temp2 = tc[m][n] * sinp[m] - tc2 * cosp[m];
         }
+        // investigate temp1
+        // b_tan should be e3 not e30
+        // print('ar ${ar} temp1 ${temp1} b_tan ${b_tan} dp[m][n] ${dp[m][n]}');
         b_tan = b_tan - ar * temp1 * dp[m][n];
         b_pol += _fm[m] * temp2 * par;
         b_rad += _fn[n] * temp1 * par;
@@ -528,6 +535,7 @@ class GeoMag {
 
     //  ROTATE MAGNETIC VECTOR COMPONENTS FROM SPHERICAL TO
     //  GEODETIC COORDINATES
+    // bt should be e3 not e30
     print('bt ${b_tan}');
     print('br ${b_rad}');
     var bx = -b_tan * ca - b_rad * sa;
@@ -542,7 +550,7 @@ class GeoMag {
     var bh = sqrt((bx * bx) + (by * by));
     print('bh ${bh}');
     print('bz ${bz}');
-
+    // f should be e3 not e30
     result.f = sqrt((bh * bh) + (bz * bz));
     print('result.f ${result.f}');
     result.d = atan2(by, bx) / degToRad;
