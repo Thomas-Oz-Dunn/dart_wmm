@@ -395,11 +395,12 @@ class GeoMag {
     bool allow_date_outside_lifespan = false,
     bool raise_in_warning_zone = false,
   }) {
-    List<List<double>> tc = _create_matrix(13);
-    List<List<double>> dp = _create_matrix(13);
-    List<double> sinp = _create_list(169);
-    List<double> cosp = _create_list(13);
-    List<double> pp = _create_list(13);
+    int dims = 13;
+    List<List<double>> tc = _create_matrix(dims);
+    List<List<double>> dp = _create_matrix(dims);
+    List<double> sinp = _create_list(dims);
+    List<double> cosp = _create_list(dims);
+    List<double> pp = _create_list(dims);
 
     // # INITIALIZE CONSTANTS
     sinp[0] = 0.0;
@@ -407,6 +408,7 @@ class GeoMag {
     dp[0][0] = 0.0;
 
     // Shape of earth
+    // TODO-TD: global constants at initialization?
     double aE = 6378.137;
     double bE = 6356.7523142;
     double rE = 6371.2;
@@ -438,13 +440,13 @@ class GeoMag {
     double q = sqrt(aE2 - cE2 * sin_rlat2);
     double q1 = alt * q;
     double q2 = (q1 + aE2) / (q1 + bE2);
-    double ct = sin_rlat / sqrt(q2 * q2 * cos_rlat2 + sin_rlat2);
-    double st = sqrt(1.0 - (ct * ct));
+    double cost = sin_rlat / sqrt(q2 * q2 * cos_rlat2 + sin_rlat2);
+    double sint = sqrt(1.0 - (cost * cost));
     double r2 = (alt * alt) + 2.0 * q1 + (aE4 - cE4 * sin_rlat2) / (q * q);
     double r = sqrt(r2);  // km
     double d = sqrt(aE2 * cos_rlat2 + bE2 * sin_rlat2);
-    double ca = (alt + d) / r;
-    double sa = cE2 * cos_rlat * sin_rlat / (r * d);
+    double cosa = (alt + d) / r;
+    double sina = cE2 * cos_rlat * sin_rlat / (r * d);
     for (var m = 2; m < _maxord + 1; m += 1) {
       sinp[m] = sinp[1] * cosp[m - 1] + cosp[1] * sinp[m - 1];
       cosp[m] = cosp[1] * cosp[m - 1] - sinp[1] * sinp[m - 1];
@@ -465,23 +467,23 @@ class GeoMag {
       while (D4 > 0) {
         //  COMPUTE UNNORMALIZED ASSOCIATED LEGENDRE POLYNOMIALS
         //  AND DERIVATIVES VIA RECURSION RELATIONS
-        var i = n + m * 13;
-        var j = n - 1 + (m - 1) * 13;
+        var i = n + m * dims;
+        var j = n - 1 + (m - 1) * dims;
         if (n == m) {
-          _p[i] = st * _p[j];
-          dp[m][n] = st * dp[m - 1][n - 1] + ct * _p[j];
+          _p[i] = sint * _p[j];
+          dp[m][n] = sint * dp[m - 1][n - 1] + cost * _p[j];
         } else if (n == 1 && m == 0) {
-          _p[i] = ct * _p[i - 1];
-          dp[m][n] = ct * dp[m][n - 1] - st * _p[i - 1];
+
+          _p[i] = cost * _p[i - 1];
+          dp[m][n] = cost * dp[m][n - 1] - sint * _p[i - 1];
+
         } else if (n > 1 && n != m) {
           if (m > n - 2) {
             _p[i - 2] = 0.0;
             dp[m][n - 2] = 0.0;
           }
-          _p[i] =
-              ct * _p[i - 1] - _k[m][n] * _p[i - 2];
-          dp[m][n] = ct * dp[m][n - 1] -
-              st * _p[i - 1] -
+          _p[i] = cost * _p[i - 1] - _k[m][n] * _p[i - 2];
+          dp[m][n] = cost * dp[m][n - 1] - sint * _p[i - 1] -
               _k[m][n] * dp[m][n - 2];
         }
 
@@ -494,32 +496,29 @@ class GeoMag {
         print('tc[m][n] ${tc[m][n]}');
 
         // ACCUMULATE TERMS OF THE SPHERICAL HARMONIC EXPANSIONS
-        double par = ar * _p[n + m * 13];
-        double temp1;
-        double temp2;
-        if (m == 0) {
-          temp1 = tc[m][n] * cosp[m];
-          temp2 = tc[m][n] * sinp[m];
-        } else {
-          var tc2 = tc[n][m - 1];
-          temp1 = tc[m][n] * cosp[m] + tc2 * sinp[m];
-          temp2 = tc[m][n] * sinp[m] - tc2 * cosp[m];
+        double par = ar * _p[n + m * dims];
+        double b_rad_scale = tc[m][n] * cosp[m];
+        double b_pol_scale = tc[m][n] * sinp[m];
+        if (m != 0) {
+          double tc2 = tc[n][m - 1];
+          b_rad_scale += tc2 * sinp[m];
+          b_pol_scale -= tc2 * cosp[m];
         }
+
         // investigate temp1
         // b_tan should be e3 not e30
-        // print('ar ${ar} temp1 ${temp1} b_tan ${b_tan} dp[m][n] ${dp[m][n]}');
-        b_tan = b_tan - ar * temp1 * dp[m][n];
-        b_pol += _fm[m] * temp2 * par;
-        b_rad += _fn[n] * temp1 * par;
+        b_tan -= ar * b_rad_scale * dp[m][n];
+        b_pol += _fm[m] * b_pol_scale * par;
+        b_rad += _fn[n] * b_rad_scale * par;
+        print('ar ${ar} temp1 ${b_rad_scale} b_tan ${b_tan} dp[m][n] ${dp[m][n]}');
 
         // SPECIAL CASE:  NORTH/SOUTH GEOGRAPHIC POLES
-        if (st == 0.0 && m == 1) {
-          if (n == 1) {
-            pp[n] = pp[n - 1];
-          } else {
-            pp[n] = ct * pp[n - 1] - _k[m][n] * pp[n - 2];
+        if (sint == 0.0 && m == 1) {
+          pp[n] = cost * pp[n - 1]; // FIXME-TD: Check against model, ct? 
+          if (n != 1) {
+            pp[n] -= _k[m][n] * pp[n - 2];
           }
-          bpp += _fm[m] * temp2 * ar * pp[n];
+          bpp += _fm[m] * b_pol_scale * ar * pp[n];
         }
 
         D4 -= 1;
@@ -527,29 +526,21 @@ class GeoMag {
       }
     }
 
-    if (st == 0.0) {
-      b_pol = bpp;
-    } else {
-      b_pol /= st;
-    }
+    b_pol = (sint == 0.0) ? bpp : b_pol / sint;
 
     //  ROTATE MAGNETIC VECTOR COMPONENTS FROM SPHERICAL TO
     //  GEODETIC COORDINATES
     // bt should be e3 not e30
     print('bt ${b_tan}');
-    print('br ${b_rad}');
-    var bx = -b_tan * ca - b_rad * sa;
-    print('bx ${bx}');
+    var bx = -b_tan * cosa - b_rad * sina;
     var by = b_pol;
-    var bz = b_tan * sa - b_rad * ca;
+    var bz = b_tan * sina - b_rad * cosa;
 
     GeoMagResult result = GeoMagResult(dec_year, alt, glat, glon);
 
     // COMPUTE DECLINATION (DEC), INCLINATION (DIP) AND
     // TOTAL INTENSITY (TI)
     var bh = sqrt((bx * bx) + (by * by));
-    print('bh ${bh}');
-    print('bz ${bz}');
     // f should be e3 not e30
     result.f = sqrt((bh * bh) + (bz * bz));
     print('result.f ${result.f}');
